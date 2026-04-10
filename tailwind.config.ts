@@ -47,6 +47,15 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        mars: {
+          surface: "hsl(var(--mars-surface))",
+          dust: "hsl(var(--mars-dust))",
+          sky: "hsl(var(--mars-sky))",
+        },
+        imposter: "hsl(var(--imposter-red))",
+        crew: "hsl(var(--crew-blue))",
+        protector: "hsl(var(--protector-green))",
+        freeze: "hsl(var(--freeze-cyan))",
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
