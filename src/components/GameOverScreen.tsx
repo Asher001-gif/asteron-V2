@@ -17,8 +17,8 @@ export default function GameOverScreen({ state, onRestart }: Props) {
         </h1>
         <p className="text-muted-foreground font-mono">
           {isCrewWin
-            ? 'All imposters were eliminated. Mars base is safe!'
-            : 'The imposters have taken over the Mars base...'}
+            ? 'All tasks completed! Mars base is operational!'
+            : 'The imposters eliminated all crewmates...'}
         </p>
         <div className="text-sm text-muted-foreground font-mono">
           Time: {Math.floor(state.timeElapsed / 1000)}s |

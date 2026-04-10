@@ -5,9 +5,9 @@ interface Props {
 }
 
 const roles: { role: Role; label: string; desc: string; color: string; icon: string }[] = [
-  { role: 'imposter', label: 'IMPOSTER', desc: 'Hunt and eliminate all crew members', color: '#e03030', icon: '🔪' },
-  { role: 'crewmate', label: 'CREWMATE', desc: 'Survive! Run from the imposters', color: '#4a90d9', icon: '🏃' },
-  { role: 'protector', label: 'PROTECTOR', desc: 'Freeze imposters with your gun to save crew', color: '#3dba6f', icon: '🛡️' },
+  { role: 'imposter', label: 'IMPOSTER', desc: 'Kill all crewmates before tasks are done', color: '#e03030', icon: '🔪' },
+  { role: 'crewmate', label: 'CREWMATE', desc: 'Complete 10 tasks to win! Press E near stations', color: '#4a90d9', icon: '🏃' },
+  { role: 'protector', label: 'PROTECTOR', desc: 'Freeze imposters to protect crew (can\'t do tasks)', color: '#3dba6f', icon: '🛡️' },
 ];
 
 export default function LobbyScreen({ onStart }: Props) {
