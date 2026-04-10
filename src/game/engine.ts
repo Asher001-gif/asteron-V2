@@ -1,8 +1,9 @@
 import {
   Player, GameState, Role,
   PLAYER_RADIUS, KILL_RANGE, FREEZE_RANGE, FREEZE_DURATION,
-  KILL_COOLDOWN, FREEZE_COOLDOWN, MAP_WIDTH, MAP_HEIGHT
+  KILL_COOLDOWN, FREEZE_COOLDOWN, MAP_WIDTH, MAP_HEIGHT, TASK_RANGE, TOTAL_TASKS
 } from './types';
+import { createTaskStations } from './tasks';
 
 const NAMES = ['Astro', 'Nova', 'Blaze', 'Comet', 'Orbit', 'Dust', 'Nebula', 'Crater', 'Titan', 'Cosmo'];
 
@@ -14,11 +15,9 @@ export function createGame(playerRole: Role): GameState {
   const roles: Role[] = ['imposter', 'imposter', 'protector', 'protector',
     'crewmate', 'crewmate', 'crewmate', 'crewmate', 'crewmate', 'crewmate'];
   
-  // Put chosen role at index 0
   const roleIdx = roles.indexOf(playerRole);
   [roles[0], roles[roleIdx]] = [roles[roleIdx], roles[0]];
   
-  // Shuffle rest
   for (let i = roles.length - 1; i > 1; i--) {
     const j = 1 + Math.floor(Math.random() * i);
     [roles[i], roles[j]] = [roles[j], roles[i]];
@@ -41,6 +40,9 @@ export function createGame(playerRole: Role): GameState {
     aiChangeTime: 0,
     killCooldown: 0,
     freezeCooldown: 0,
+    doingTask: false,
+    taskStationId: null,
+    taskProgress: 0,
   }));
 
   return {
@@ -50,21 +52,23 @@ export function createGame(playerRole: Role): GameState {
     timeElapsed: 0,
     mapWidth: MAP_WIDTH,
     mapHeight: MAP_HEIGHT,
+    taskStations: createTaskStations(),
+    tasksCompleted: 0,
+    totalTasks: TOTAL_TASKS,
+    activeTask: null,
   };
 }
 
-export function updateAI(player: Player, allPlayers: Player[], now: number) {
+function updateAI(player: Player, allPlayers: Player[], now: number) {
   if (!player.alive || player.frozen || player.isHuman) return;
 
   const alive = allPlayers.filter(p => p.alive && p.id !== player.id);
 
   if (player.role === 'imposter') {
-    // Chase nearest crewmate/protector
     const targets = alive.filter(p => p.role !== 'imposter');
     if (targets.length === 0) return;
     const nearest = targets.reduce((a, b) => dist(player, a) < dist(player, b) ? a : b);
     
-    // Check for nearby protectors - flee if one is close
     const nearbyProtector = alive.find(p => p.role === 'protector' && dist(player, p) < 200);
     if (nearbyProtector && Math.random() < 0.7) {
       const dx = player.x - nearbyProtector.x;
@@ -78,7 +82,6 @@ export function updateAI(player: Player, allPlayers: Player[], now: number) {
       player.direction = { x: dx / d, y: dy / d };
     }
   } else if (player.role === 'protector') {
-    // Move toward nearest crewmate being chased or nearest imposter
     const imposters = alive.filter(p => p.role === 'imposter');
     if (imposters.length > 0) {
       const nearest = imposters.reduce((a, b) => dist(player, a) < dist(player, b) ? a : b);
@@ -90,22 +93,38 @@ export function updateAI(player: Player, allPlayers: Player[], now: number) {
       wanderAI(player, now);
     }
   } else {
-    // Crewmate: flee from nearest imposter
-    const imposters = alive.filter(p => p.role === 'imposter');
-    if (imposters.length > 0) {
-      const nearest = imposters.reduce((a, b) => dist(player, a) < dist(player, b) ? a : b);
-      if (dist(player, nearest) < 250) {
-        const dx = player.x - nearest.x;
-        const dy = player.y - nearest.y;
-        const d = Math.max(1, Math.sqrt(dx * dx + dy * dy));
-        player.direction = { x: dx / d, y: dy / d };
-      } else {
-        wanderAI(player, now);
-      }
-    } else {
-      wanderAI(player, now);
-    }
+    // Crewmate AI: do tasks or flee
+    aiCrewmateBehavior(player, allPlayers, now);
   }
+}
+
+function aiCrewmateBehavior(player: Player, allPlayers: Player[], now: number) {
+  const imposters = allPlayers.filter(p => p.alive && p.role === 'imposter');
+  const nearestImposter = imposters.length > 0
+    ? imposters.reduce((a, b) => dist(player, a) < dist(player, b) ? a : b)
+    : null;
+
+  // If imposter is close, flee (drop task)
+  if (nearestImposter && dist(player, nearestImposter) < 250) {
+    player.doingTask = false;
+    player.taskStationId = null;
+    player.taskProgress = 0;
+    const dx = player.x - nearestImposter.x;
+    const dy = player.y - nearestImposter.y;
+    const d = Math.max(1, Math.sqrt(dx * dx + dy * dy));
+    player.direction = { x: dx / d, y: dy / d };
+    return;
+  }
+
+  // If doing a task, stay still
+  if (player.doingTask) {
+    player.direction = { x: 0, y: 0 };
+    return;
+  }
+
+  // Find nearest incomplete task station
+  // Use a pseudo-random target based on player id to spread them out
+  wanderAI(player, now);
 }
 
 function wanderAI(player: Player, now: number) {
@@ -120,13 +139,15 @@ function wanderAI(player: Player, now: number) {
   player.direction = { x: dx / d, y: dy / d };
 }
 
-export function performAIActions(player: Player, allPlayers: Player[], now: number) {
+function performAIActions(player: Player, allPlayers: Player[], state: GameState, now: number) {
   if (!player.alive || player.frozen || player.isHuman) return;
 
   if (player.role === 'imposter' && player.killCooldown <= 0) {
     const targets = allPlayers.filter(p => p.alive && p.role !== 'imposter' && dist(player, p) < KILL_RANGE);
     if (targets.length > 0) {
       targets[0].alive = false;
+      targets[0].doingTask = false;
+      targets[0].taskStationId = null;
       player.killCooldown = KILL_COOLDOWN;
     }
   }
@@ -139,6 +160,34 @@ export function performAIActions(player: Player, allPlayers: Player[], now: numb
       player.freezeCooldown = FREEZE_COOLDOWN;
     }
   }
+
+  // AI crewmate task completion
+  if (player.role === 'crewmate' && !player.doingTask) {
+    const incompleteTasks = state.taskStations.filter(t => !t.completed);
+    if (incompleteTasks.length > 0) {
+      const nearTask = incompleteTasks.find(t => dist(player, t) < TASK_RANGE);
+      if (nearTask) {
+        player.doingTask = true;
+        player.taskStationId = nearTask.id;
+        player.taskProgress = 0;
+      }
+    }
+  }
+
+  // Progress AI task
+  if (player.role === 'crewmate' && player.doingTask && player.taskStationId !== null) {
+    player.taskProgress += 0.004; // ~4-5 seconds
+    if (player.taskProgress >= 1) {
+      const station = state.taskStations.find(t => t.id === player.taskStationId);
+      if (station && !station.completed) {
+        station.completed = true;
+        state.tasksCompleted++;
+      }
+      player.doingTask = false;
+      player.taskStationId = null;
+      player.taskProgress = 0;
+    }
+  }
 }
 
 export function updateGame(state: GameState, dt: number, keys: Set<string>, now: number): GameState {
@@ -146,8 +195,8 @@ export function updateGame(state: GameState, dt: number, keys: Set<string>, now:
 
   const human = state.players[0];
 
-  // Human input
-  if (human.alive && !human.frozen) {
+  // Human input (skip if doing task)
+  if (human.alive && !human.frozen && !human.doingTask) {
     let dx = 0, dy = 0;
     if (keys.has('w') || keys.has('arrowup')) dy -= 1;
     if (keys.has('s') || keys.has('arrowdown')) dy += 1;
@@ -159,42 +208,39 @@ export function updateGame(state: GameState, dt: number, keys: Set<string>, now:
     } else {
       human.direction = { x: 0, y: 0 };
     }
+  } else if (human.doingTask) {
+    human.direction = { x: 0, y: 0 };
   }
 
-  // Update all players
   for (const p of state.players) {
     if (!p.alive) continue;
 
-    // Unfreeze
     if (p.frozen && now >= p.frozenUntil) {
       p.frozen = false;
     }
     if (p.frozen) continue;
 
-    // Cooldowns
     if (p.killCooldown > 0) p.killCooldown -= dt;
     if (p.freezeCooldown > 0) p.freezeCooldown -= dt;
 
-    // AI
     if (!p.isHuman) {
       updateAI(p, state.players, now);
-      performAIActions(p, state.players, now);
+      performAIActions(p, state.players, state, now);
     }
 
-    // Movement
     p.x += p.direction.x * p.speed;
     p.y += p.direction.y * p.speed;
     p.x = Math.max(PLAYER_RADIUS, Math.min(state.mapWidth - PLAYER_RADIUS, p.x));
     p.y = Math.max(PLAYER_RADIUS, Math.min(state.mapHeight - PLAYER_RADIUS, p.y));
   }
 
-  // Check win conditions
-  const aliveImposters = state.players.filter(p => p.alive && p.role === 'imposter').length;
-  const aliveCrew = state.players.filter(p => p.alive && p.role !== 'imposter').length;
-
-  if (aliveImposters === 0) {
+  // Win: all tasks completed
+  if (state.tasksCompleted >= state.totalTasks) {
     return { ...state, phase: 'gameover', winner: 'crew', timeElapsed: state.timeElapsed + dt };
   }
+
+  // Win: all crew dead
+  const aliveCrew = state.players.filter(p => p.alive && p.role === 'crewmate').length;
   if (aliveCrew === 0) {
     return { ...state, phase: 'gameover', winner: 'imposters', timeElapsed: state.timeElapsed + dt };
   }
@@ -209,6 +255,7 @@ export function humanKill(state: GameState, now: number): boolean {
   const targets = state.players.filter(p => p.alive && p.id !== 0 && p.role !== 'imposter' && dist(human, p) < KILL_RANGE);
   if (targets.length > 0) {
     targets[0].alive = false;
+    targets[0].doingTask = false;
     human.killCooldown = KILL_COOLDOWN;
     return true;
   }
@@ -227,4 +274,12 @@ export function humanFreeze(state: GameState, now: number): boolean {
     return true;
   }
   return false;
+}
+
+export function getNearbyTask(state: GameState): number | null {
+  const human = state.players[0];
+  if (!human.alive || human.frozen || human.role !== 'crewmate') return null;
+  
+  const nearby = state.taskStations.find(t => !t.completed && dist(human, t) < TASK_RANGE);
+  return nearby ? nearby.id : null;
 }
