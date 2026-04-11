@@ -124,11 +124,13 @@ function drawTaskStations(ctx: CanvasRenderingContext2D, state: GameState) {
 }
 
 function drawPlayer(ctx: CanvasRenderingContext2D, p: Player, human: Player) {
-  const color = p.frozen ? FROZEN_COLOR : ROLE_COLORS[p.role];
+  const x = p.x;
+  const y = p.y;
+  const s = 1.4; // scale
 
   if (p.frozen) {
     ctx.beginPath();
-    ctx.arc(p.x, p.y, PLAYER_RADIUS + 8, 0, Math.PI * 2);
+    ctx.arc(x, y, 28 * s, 0, Math.PI * 2);
     ctx.fillStyle = 'rgba(64, 216, 240, 0.2)';
     ctx.fill();
     ctx.strokeStyle = FROZEN_COLOR;
@@ -138,49 +140,305 @@ function drawPlayer(ctx: CanvasRenderingContext2D, p: Player, human: Player) {
     ctx.setLineDash([]);
   }
 
-  // Task indicator
   if (p.doingTask) {
     ctx.beginPath();
-    ctx.arc(p.x, p.y, PLAYER_RADIUS + 6, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * p.taskProgress);
+    ctx.arc(x, y - 5 * s, 26 * s, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * p.taskProgress);
     ctx.strokeStyle = '#ffd700';
     ctx.lineWidth = 3;
     ctx.stroke();
   }
 
-  ctx.beginPath();
-  ctx.arc(p.x, p.y, PLAYER_RADIUS, 0, Math.PI * 2);
-  ctx.fillStyle = color;
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(0,0,0,0.4)';
-  ctx.lineWidth = 2;
-  ctx.stroke();
+  if (p.role === 'imposter') {
+    drawImposterChar(ctx, x, y, s, p.frozen);
+  } else if (p.role === 'protector') {
+    drawProtectorChar(ctx, x, y, s, p.frozen);
+  } else {
+    drawCrewmateChar(ctx, x, y, s, p.frozen);
+  }
 
-  ctx.beginPath();
-  ctx.arc(p.x + 5, p.y - 4, 8, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(200, 230, 255, 0.7)';
-  ctx.fill();
-
+  // Name
   ctx.fillStyle = '#ddd';
   ctx.font = 'bold 11px monospace';
   ctx.textAlign = 'center';
-  ctx.fillText(p.name, p.x, p.y - PLAYER_RADIUS - 6);
+  ctx.fillText(p.name, x, y - 32 * s);
 
   if (p.isHuman) {
     ctx.fillStyle = '#ffd700';
     ctx.font = 'bold 10px monospace';
-    ctx.fillText('▼ YOU', p.x, p.y - PLAYER_RADIUS - 18);
+    ctx.fillText('▼ YOU', x, y - 40 * s);
   }
 }
 
-function drawDeadPlayer(ctx: CanvasRenderingContext2D, p: Player) {
+function drawCrewmateChar(ctx: CanvasRenderingContext2D, x: number, y: number, s: number, frozen: boolean) {
+  const bodyColor = frozen ? FROZEN_COLOR : '#e8e8e8';
+  const accentColor = frozen ? '#80e8f8' : '#4a90d9';
+
+  // Body (egg shape)
   ctx.beginPath();
-  ctx.ellipse(p.x, p.y + 5, PLAYER_RADIUS, PLAYER_RADIUS * 0.5, 0, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(120, 30, 30, 0.6)';
+  ctx.ellipse(x, y + 2 * s, 16 * s, 20 * s, 0, 0, Math.PI * 2);
+  ctx.fillStyle = bodyColor;
   ctx.fill();
+  ctx.strokeStyle = '#aaa';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Helmet dome
+  ctx.beginPath();
+  ctx.arc(x, y - 12 * s, 14 * s, Math.PI, 0);
+  ctx.fillStyle = bodyColor;
+  ctx.fill();
+  ctx.strokeStyle = '#aaa';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Visor (dark area)
+  ctx.beginPath();
+  ctx.ellipse(x, y - 10 * s, 10 * s, 7 * s, 0, 0, Math.PI * 2);
+  ctx.fillStyle = '#1a2a3a';
+  ctx.fill();
+  ctx.strokeStyle = '#555';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Eyes (^^ happy)
+  ctx.strokeStyle = accentColor;
+  ctx.lineWidth = 2;
+  // Left eye ^
+  ctx.beginPath();
+  ctx.moveTo(x - 5 * s, y - 9 * s);
+  ctx.lineTo(x - 3 * s, y - 12 * s);
+  ctx.lineTo(x - 1 * s, y - 9 * s);
+  ctx.stroke();
+  // Right eye ^
+  ctx.beginPath();
+  ctx.moveTo(x + 1 * s, y - 9 * s);
+  ctx.lineTo(x + 3 * s, y - 12 * s);
+  ctx.lineTo(x + 5 * s, y - 9 * s);
+  ctx.stroke();
+
+  // Antenna with blue orb
+  ctx.beginPath();
+  ctx.moveTo(x - 8 * s, y + 8 * s);
+  ctx.lineTo(x - 14 * s, y + 18 * s);
+  ctx.strokeStyle = '#888';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(x - 14 * s, y + 20 * s, 4 * s, 0, Math.PI * 2);
+  ctx.fillStyle = accentColor;
+  ctx.fill();
+  // Glow
+  ctx.beginPath();
+  ctx.arc(x - 14 * s, y + 20 * s, 6 * s, 0, Math.PI * 2);
+  ctx.fillStyle = frozen ? 'rgba(64,216,240,0.3)' : 'rgba(74,144,217,0.3)';
+  ctx.fill();
+}
+
+function drawImposterChar(ctx: CanvasRenderingContext2D, x: number, y: number, s: number, frozen: boolean) {
+  const bodyColor = frozen ? FROZEN_COLOR : '#888';
+  const accentColor = frozen ? '#80e8f8' : '#e03030';
+
+  // Body (slightly wider, menacing)
+  ctx.beginPath();
+  ctx.ellipse(x, y + 2 * s, 17 * s, 20 * s, 0, 0, Math.PI * 2);
+  ctx.fillStyle = bodyColor;
+  ctx.fill();
+  ctx.strokeStyle = '#555';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Helmet dome
+  ctx.beginPath();
+  ctx.arc(x, y - 12 * s, 14 * s, Math.PI, 0);
+  ctx.fillStyle = frozen ? FROZEN_COLOR : '#666';
+  ctx.fill();
+  ctx.strokeStyle = '#444';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Visor
+  ctx.beginPath();
+  ctx.ellipse(x, y - 10 * s, 10 * s, 7 * s, 0, 0, Math.PI * 2);
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fill();
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Angry eyes (XX / angry brows)
+  ctx.strokeStyle = accentColor;
+  ctx.lineWidth = 2.5;
+  // Left X
+  ctx.beginPath();
+  ctx.moveTo(x - 6 * s, y - 12 * s);
+  ctx.lineTo(x - 2 * s, y - 8 * s);
+  ctx.moveTo(x - 2 * s, y - 12 * s);
+  ctx.lineTo(x - 6 * s, y - 8 * s);
+  ctx.stroke();
+  // Right X
+  ctx.beginPath();
+  ctx.moveTo(x + 2 * s, y - 12 * s);
+  ctx.lineTo(x + 6 * s, y - 8 * s);
+  ctx.moveTo(x + 6 * s, y - 12 * s);
+  ctx.lineTo(x + 2 * s, y - 8 * s);
+  ctx.stroke();
+
+  // Knife arms
+  ctx.strokeStyle = '#555';
+  ctx.lineWidth = 2;
+  // Left arm/blade
+  ctx.beginPath();
+  ctx.moveTo(x - 16 * s, y - 2 * s);
+  ctx.lineTo(x - 22 * s, y - 10 * s);
+  ctx.lineTo(x - 20 * s, y - 14 * s);
+  ctx.stroke();
+  ctx.fillStyle = '#888';
+  ctx.fill();
+  // Right arm/blade
+  ctx.beginPath();
+  ctx.moveTo(x + 16 * s, y - 2 * s);
+  ctx.lineTo(x + 22 * s, y - 10 * s);
+  ctx.lineTo(x + 20 * s, y - 14 * s);
+  ctx.stroke();
+
+  // Red orb
+  ctx.beginPath();
+  ctx.moveTo(x, y + 10 * s);
+  ctx.lineTo(x, y + 20 * s);
+  ctx.strokeStyle = '#666';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(x, y + 22 * s, 4 * s, 0, Math.PI * 2);
+  ctx.fillStyle = accentColor;
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(x, y + 22 * s, 6 * s, 0, Math.PI * 2);
+  ctx.fillStyle = frozen ? 'rgba(64,216,240,0.3)' : 'rgba(224,48,48,0.3)';
+  ctx.fill();
+}
+
+function drawProtectorChar(ctx: CanvasRenderingContext2D, x: number, y: number, s: number, frozen: boolean) {
+  const bodyColor = frozen ? FROZEN_COLOR : '#e8e8e8';
+  const accentColor = frozen ? '#80e8f8' : '#3dba6f';
+
+  // Body
+  ctx.beginPath();
+  ctx.ellipse(x, y + 2 * s, 16 * s, 20 * s, 0, 0, Math.PI * 2);
+  ctx.fillStyle = bodyColor;
+  ctx.fill();
+  ctx.strokeStyle = '#aaa';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Helmet dome
+  ctx.beginPath();
+  ctx.arc(x, y - 12 * s, 14 * s, Math.PI, 0);
+  ctx.fillStyle = bodyColor;
+  ctx.fill();
+  ctx.strokeStyle = '#aaa';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Visor
+  ctx.beginPath();
+  ctx.ellipse(x, y - 10 * s, 10 * s, 7 * s, 0, 0, Math.PI * 2);
+  ctx.fillStyle = '#0a2a1a';
+  ctx.fill();
+  ctx.strokeStyle = '#555';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Glowing green eyes (diamond/determined)
+  ctx.fillStyle = accentColor;
+  // Left eye
+  ctx.beginPath();
+  ctx.moveTo(x - 5 * s, y - 10 * s);
+  ctx.lineTo(x - 3 * s, y - 13 * s);
+  ctx.lineTo(x - 1 * s, y - 10 * s);
+  ctx.lineTo(x - 3 * s, y - 7 * s);
+  ctx.closePath();
+  ctx.fill();
+  // Right eye
+  ctx.beginPath();
+  ctx.moveTo(x + 1 * s, y - 10 * s);
+  ctx.lineTo(x + 3 * s, y - 13 * s);
+  ctx.lineTo(x + 5 * s, y - 10 * s);
+  ctx.lineTo(x + 3 * s, y - 7 * s);
+  ctx.closePath();
+  ctx.fill();
+  // Eye glow
+  ctx.beginPath();
+  ctx.ellipse(x, y - 10 * s, 8 * s, 5 * s, 0, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(61,186,111,0.15)';
+  ctx.fill();
+
+  // Shield device on side
+  ctx.fillStyle = '#555';
+  ctx.fillRect(x + 14 * s, y - 6 * s, 6 * s, 10 * s);
+  ctx.fillStyle = accentColor;
+  ctx.fillRect(x + 15 * s, y - 4 * s, 4 * s, 3 * s);
+  ctx.fillRect(x + 15 * s, y + 1 * s, 4 * s, 2 * s);
+
+  // Green orb antenna
+  ctx.beginPath();
+  ctx.moveTo(x + 6 * s, y + 10 * s);
+  ctx.lineTo(x + 10 * s, y + 20 * s);
+  ctx.strokeStyle = '#888';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(x + 10 * s, y + 22 * s, 4 * s, 0, Math.PI * 2);
+  ctx.fillStyle = accentColor;
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(x + 10 * s, y + 22 * s, 6 * s, 0, Math.PI * 2);
+  ctx.fillStyle = frozen ? 'rgba(64,216,240,0.3)' : 'rgba(61,186,111,0.3)';
+  ctx.fill();
+}
+
+function drawDeadPlayer(ctx: CanvasRenderingContext2D, p: Player) {
+  const x = p.x;
+  const y = p.y;
+  const s = 1.4;
+
+  // Fallen body
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(Math.PI / 2);
+  ctx.globalAlpha = 0.5;
+
+  // Collapsed body shape
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 16 * s, 12 * s, 0, 0, Math.PI * 2);
+  ctx.fillStyle = '#666';
+  ctx.fill();
+  ctx.strokeStyle = '#444';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Cracked visor
+  ctx.beginPath();
+  ctx.ellipse(- 6 * s, 0, 7 * s, 5 * s, 0, 0, Math.PI * 2);
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fill();
+  ctx.strokeStyle = '#e03030';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(-8 * s, -2 * s);
+  ctx.lineTo(-4 * s, 2 * s);
+  ctx.moveTo(-6 * s, -3 * s);
+  ctx.lineTo(-3 * s, 0);
+  ctx.stroke();
+
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  // Skull marker
   ctx.fillStyle = '#ff4444';
-  ctx.font = '16px monospace';
+  ctx.font = '14px monospace';
   ctx.textAlign = 'center';
-  ctx.fillText('☠', p.x, p.y + 8);
+  ctx.fillText('☠', x, y - 18 * s);
 }
 
 function drawHUD(ctx: CanvasRenderingContext2D, state: GameState, w: number, h: number) {
