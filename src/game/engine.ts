@@ -271,7 +271,7 @@ export function humanKill(state: GameState, now: number): boolean {
   const human = state.players[0];
   if (!human.alive || human.frozen || human.role !== 'imposter' || human.killCooldown > 0) return false;
   
-  const targets = state.players.filter(p => p.alive && p.id !== 0 && p.role !== 'imposter' && dist(human, p) < KILL_RANGE);
+  const targets = state.players.filter(p => p.alive && p.id !== 0 && p.role === 'crewmate' && dist(human, p) < KILL_RANGE);
   if (targets.length > 0) {
     targets[0].alive = false;
     targets[0].doingTask = false;
