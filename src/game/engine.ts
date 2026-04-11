@@ -125,8 +125,8 @@ function aiCrewmateBehavior(player: Player, allPlayers: Player[], now: number) {
     ? imposters.reduce((a, b) => dist(player, a) < dist(player, b) ? a : b)
     : null;
 
-  // If imposter is close, flee (drop task)
-  if (nearestImposter && dist(player, nearestImposter) < 250) {
+  // Only flee if imposter is very close (150px), stay dedicated to tasks
+  if (nearestImposter && dist(player, nearestImposter) < 150) {
     player.doingTask = false;
     player.taskStationId = null;
     player.taskProgress = 0;
@@ -137,14 +137,11 @@ function aiCrewmateBehavior(player: Player, allPlayers: Player[], now: number) {
     return;
   }
 
-  // If doing a task, stay still
   if (player.doingTask) {
     player.direction = { x: 0, y: 0 };
     return;
   }
 
-  // Find nearest incomplete task station
-  // Use a pseudo-random target based on player id to spread them out
   wanderAI(player, now);
 }
 
@@ -164,7 +161,8 @@ function performAIActions(player: Player, allPlayers: Player[], state: GameState
   if (!player.alive || player.frozen || player.isHuman) return;
 
   if (player.role === 'imposter' && player.killCooldown <= 0) {
-    const targets = allPlayers.filter(p => p.alive && p.role !== 'imposter' && dist(player, p) < KILL_RANGE);
+    // Can only kill crewmates, NOT protectors
+    const targets = allPlayers.filter(p => p.alive && p.role === 'crewmate' && dist(player, p) < KILL_RANGE);
     if (targets.length > 0) {
       targets[0].alive = false;
       targets[0].doingTask = false;
