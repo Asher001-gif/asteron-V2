@@ -1,4 +1,5 @@
 import { GameState, Player, PLAYER_RADIUS, TASK_RANGE } from './types';
+import { ROOM_WALLS, ROVER_OBSTACLE } from './collision';
 
 const ROLE_COLORS: Record<string, string> = {
   imposter: '#e03030',
@@ -7,6 +8,13 @@ const ROLE_COLORS: Record<string, string> = {
 };
 
 const FROZEN_COLOR = '#40d8f0';
+
+// Preload map image
+let mapImage: HTMLImageElement | null = null;
+let mapLoaded = false;
+const img = new Image();
+img.onload = () => { mapImage = img; mapLoaded = true; };
+img.src = '/images/mars-map.jpg';
 
 export function renderGame(
   ctx: CanvasRenderingContext2D,
@@ -45,34 +53,31 @@ export function renderGame(
 }
 
 function drawMarsSurface(ctx: CanvasRenderingContext2D, w: number, h: number) {
-  ctx.fillStyle = '#3d1f14';
-  ctx.fillRect(0, 0, w, h);
+  // Draw the map image as background
+  if (mapLoaded && mapImage) {
+    ctx.drawImage(mapImage, 0, 0, w, h);
+  } else {
+    // Fallback while loading
+    ctx.fillStyle = '#8B4513';
+    ctx.fillRect(0, 0, w, h);
+  }
 
-  const craters = [
-    { x: 200, y: 300, r: 60 }, { x: 600, y: 150, r: 40 },
-    { x: 1000, y: 400, r: 80 }, { x: 400, y: 800, r: 50 },
-    { x: 1200, y: 700, r: 70 }, { x: 800, y: 900, r: 45 },
-    { x: 300, y: 600, r: 35 }, { x: 1400, y: 300, r: 55 },
-    { x: 900, y: 200, r: 30 }, { x: 1100, y: 1000, r: 65 },
-  ];
-  for (const c of craters) {
+  // Debug: draw wall outlines (subtle)
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.0)';
+  ctx.lineWidth = 2;
+  for (const wall of ROOM_WALLS) {
     ctx.beginPath();
-    ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
-    ctx.fillStyle = '#2a1510';
-    ctx.fill();
-    ctx.strokeStyle = '#4a2820';
-    ctx.lineWidth = 2;
+    ctx.moveTo(wall.x1, wall.y1);
+    ctx.lineTo(wall.x2, wall.y2);
     ctx.stroke();
   }
 
-  ctx.strokeStyle = 'rgba(100, 60, 40, 0.15)';
-  ctx.lineWidth = 1;
-  for (let x = 0; x < w; x += 80) {
-    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
-  }
-  for (let y = 0; y < h; y += 80) {
-    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
-  }
+  // Rover obstacle zone
+  ctx.beginPath();
+  ctx.arc(ROVER_OBSTACLE.x, ROVER_OBSTACLE.y, ROVER_OBSTACLE.r, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(0, 200, 255, 0.0)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
 }
 
 function drawTaskStations(ctx: CanvasRenderingContext2D, state: GameState) {

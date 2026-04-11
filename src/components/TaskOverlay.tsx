@@ -106,15 +106,26 @@ export default function TaskOverlay({ task, onComplete, onCancel }: Props) {
           <div className="space-y-3">
             <p className="font-mono text-center text-foreground">{task.prompt}</p>
             <div className="text-center font-mono text-4xl text-foreground">{sliderVal}°C</div>
-            <input
-              type="range" min={10} max={50} value={sliderVal}
-              onChange={e => { setSliderVal(Number(e.target.value)); setError(''); }}
-              onKeyDown={e => e.stopPropagation()}
-              onKeyUp={e => e.stopPropagation()}
-              className="w-full accent-primary"
-            />
-            <div className="flex justify-between text-xs font-mono text-muted-foreground">
-              <span>10°C</span><span>50°C</span>
+            <div className="flex items-center justify-center gap-4">
+              <button
+                onClick={() => { setSliderVal(v => Math.max(10, v - 1)); setError(''); }}
+                onKeyDown={e => e.stopPropagation()}
+                onKeyUp={e => e.stopPropagation()}
+                className="w-14 h-14 rounded-lg bg-muted border border-border text-2xl font-mono font-bold text-foreground hover:bg-accent active:scale-95 transition-all"
+              >
+                ▼
+              </button>
+              <div className="font-mono text-sm text-muted-foreground w-20 text-center">
+                {sliderVal < (task.targetTemp || 0) ? '↑ Too low' : sliderVal > (task.targetTemp || 0) ? '↓ Too high' : '✓ Perfect!'}
+              </div>
+              <button
+                onClick={() => { setSliderVal(v => Math.min(50, v + 1)); setError(''); }}
+                onKeyDown={e => e.stopPropagation()}
+                onKeyUp={e => e.stopPropagation()}
+                className="w-14 h-14 rounded-lg bg-muted border border-border text-2xl font-mono font-bold text-foreground hover:bg-accent active:scale-95 transition-all"
+              >
+                ▲
+              </button>
             </div>
             <button onClick={handleTempSubmit}
               className="w-full py-2 rounded-lg bg-primary text-primary-foreground font-mono font-bold hover:opacity-90">
