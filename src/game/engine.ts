@@ -252,6 +252,11 @@ export function updateGame(state: GameState, dt: number, keys: Set<string>, now:
     p.y += p.direction.y * p.speed;
     p.x = Math.max(PLAYER_RADIUS, Math.min(state.mapWidth - PLAYER_RADIUS, p.x));
     p.y = Math.max(PLAYER_RADIUS, Math.min(state.mapHeight - PLAYER_RADIUS, p.y));
+
+    // Resolve wall & rover collisions
+    const resolved = resolveCollisions(p.x, p.y);
+    p.x = resolved.x;
+    p.y = resolved.y;
   }
 
   // Win: all tasks completed
