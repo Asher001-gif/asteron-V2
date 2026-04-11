@@ -4,6 +4,7 @@ import {
   KILL_COOLDOWN, FREEZE_COOLDOWN, MAP_WIDTH, MAP_HEIGHT, TASK_RANGE, TOTAL_TASKS
 } from './types';
 import { createTaskStations } from './tasks';
+import { resolveCollisions } from './collision';
 
 const NAMES = ['Astro', 'Nova', 'Blaze', 'Comet', 'Orbit', 'Dust', 'Nebula', 'Crater', 'Titan', 'Cosmo'];
 
