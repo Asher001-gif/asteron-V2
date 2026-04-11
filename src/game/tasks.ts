@@ -21,11 +21,16 @@ const TASK_LABELS: Record<TaskType, string> = {
 };
 
 export function createTaskStations(): TaskStation[] {
+  // Positions inside rooms on the map
   const positions = [
-    { x: 350, y: 250 }, { x: 750, y: 180 }, { x: 1150, y: 350 },
-    { x: 500, y: 600 }, { x: 900, y: 450 }, { x: 1300, y: 600 },
-    { x: 250, y: 850 }, { x: 650, y: 950 }, { x: 1050, y: 800 },
-    { x: 1400, y: 950 },
+    // Biodome (top-left)
+    { x: 150, y: 200 }, { x: 250, y: 150 },
+    // Server room (top-right)
+    { x: 1050, y: 200 }, { x: 1250, y: 150 }, { x: 1150, y: 350 },
+    // Storage room (middle-left)
+    { x: 200, y: 650 }, { x: 400, y: 650 }, { x: 600, y: 620 },
+    // Open Mars area
+    { x: 800, y: 800 }, { x: 500, y: 1050 },
   ];
 
   const types: TaskType[] = ['math', 'math', 'temperature', 'temperature',
