@@ -5,9 +5,9 @@ const FROZEN_COLOR = '#40d8f0';
 
 // Vision radii per role
 const VISION_RADIUS: Record<string, number> = {
-  crewmate: 320,
-  protector: 270,
-  imposter: 220,
+  crewmate: 220,
+  protector: 170,
+  imposter: 120,
 };
 
 export function renderGame(
