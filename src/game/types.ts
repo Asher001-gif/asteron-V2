@@ -59,7 +59,7 @@ export interface GameState {
 export const PLAYER_RADIUS = 18;
 export const KILL_RANGE = 50;
 export const FREEZE_RANGE = 120;
-export const FREEZE_DURATION = 3000;
+export const FREEZE_DURATION = 5000;
 export const KILL_COOLDOWN = 5000;
 export const FREEZE_COOLDOWN = 10000;
 export const MAP_WIDTH = 1600;
