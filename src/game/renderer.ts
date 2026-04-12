@@ -3,6 +3,13 @@ import { ROOM_WALLS, OBSTACLES, ROOMS } from './collision';
 
 const FROZEN_COLOR = '#40d8f0';
 
+// Vision radii per role
+const VISION_RADIUS: Record<string, number> = {
+  crewmate: 320,
+  protector: 270,
+  imposter: 220,
+};
+
 export function renderGame(
   ctx: CanvasRenderingContext2D,
   state: GameState,
@@ -16,11 +23,8 @@ export function renderGame(
   ctx.save();
   ctx.clearRect(0, 0, canvasW, canvasH);
 
-  // Mars sky background
-  const skyGrad = ctx.createLinearGradient(0, 0, 0, canvasH);
-  skyGrad.addColorStop(0, '#1a0a08');
-  skyGrad.addColorStop(1, '#2d1810');
-  ctx.fillStyle = skyGrad;
+  // Fill entire canvas black first (fog base)
+  ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, canvasW, canvasH);
 
   ctx.translate(-camX, -camY);
@@ -35,6 +39,29 @@ export function renderGame(
     if (p.alive) drawPlayer(ctx, p, human);
   }
 
+  ctx.restore();
+
+  // Draw fog of war overlay
+  const visionR = VISION_RADIUS[human.role] || 270;
+  const screenX = human.x - camX;
+  const screenY = human.y - camY;
+
+  // Create radial gradient mask: clear center -> dark edges
+  const fogGrad = ctx.createRadialGradient(screenX, screenY, visionR * 0.5, screenX, screenY, visionR);
+  fogGrad.addColorStop(0, 'rgba(0,0,0,0)');
+  fogGrad.addColorStop(0.7, 'rgba(0,0,0,0.3)');
+  fogGrad.addColorStop(1, 'rgba(0,0,0,0.92)');
+
+  ctx.save();
+  ctx.fillStyle = fogGrad;
+  ctx.fillRect(0, 0, canvasW, canvasH);
+
+  // Hard fog outside vision radius
+  ctx.beginPath();
+  ctx.rect(0, 0, canvasW, canvasH);
+  ctx.arc(screenX, screenY, visionR, 0, Math.PI * 2, true);
+  ctx.fillStyle = 'rgba(0,0,0,0.85)';
+  ctx.fill();
   ctx.restore();
 
   drawHUD(ctx, state, canvasW, canvasH);
@@ -221,7 +248,7 @@ function drawTaskStations(ctx: CanvasRenderingContext2D, state: GameState) {
 function drawPlayer(ctx: CanvasRenderingContext2D, p: Player, human: Player) {
   const x = p.x;
   const y = p.y;
-  const s = 1.4;
+  const s = 1.0;
 
   if (p.frozen) {
     ctx.beginPath();
@@ -467,7 +494,7 @@ function drawProtectorChar(ctx: CanvasRenderingContext2D, x: number, y: number, 
 function drawDeadPlayer(ctx: CanvasRenderingContext2D, p: Player) {
   const x = p.x;
   const y = p.y;
-  const s = 1.4;
+  const s = 1.0;
 
   ctx.save();
   ctx.translate(x, y);
