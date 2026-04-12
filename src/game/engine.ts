@@ -88,27 +88,51 @@ function updateAI(player: Player, allPlayers: Player[], now: number) {
       player.direction = { x: dx / d, y: dy / d };
     }
   } else if (player.role === 'protector') {
-    // Protector guards crewmates, only freezes imposters threatening crew
+    // Protector: stay with crew, rush to save threatened crew, freeze imposters near crew
     const crew = alive.filter(p => p.role === 'crewmate');
     const imposters = alive.filter(p => p.role === 'imposter');
     
-    const threateningImposter = imposters.find(imp => 
-      crew.some(c => dist(imp, c) < 300)
+    // 1. Find any crew under direct threat (imposter within 250px of a crewmate)
+    const threatenedCrew = crew.filter(c => 
+      imposters.some(imp => dist(imp, c) < 250)
     );
-    
-    if (threateningImposter && dist(player, threateningImposter) < FREEZE_RANGE + 100) {
+
+    // 2. Find the threatening imposter closest to any threatened crew
+    const threateningImposter = threatenedCrew.length > 0
+      ? imposters
+          .filter(imp => threatenedCrew.some(c => dist(imp, c) < 250))
+          .reduce((a, b) => {
+            const aDist = Math.min(...threatenedCrew.map(c => dist(a, c)));
+            const bDist = Math.min(...threatenedCrew.map(c => dist(b, c)));
+            return aDist < bDist ? a : b;
+          }, imposters[0])
+      : null;
+
+    if (threateningImposter) {
+      // Rush towards the threatening imposter to freeze them
       const dx = threateningImposter.x - player.x;
       const dy = threateningImposter.y - player.y;
       const d = Math.max(1, Math.sqrt(dx * dx + dy * dy));
       player.direction = { x: dx / d, y: dy / d };
     } else if (crew.length > 0) {
-      const nearestCrew = crew.reduce((a, b) => dist(player, a) < dist(player, b) ? a : b);
-      if (dist(player, nearestCrew) > 150) {
-        const dx = nearestCrew.x - player.x;
-        const dy = nearestCrew.y - player.y;
+      // 3. Find lone crewmates (no other crew within 200px)
+      const loneCrew = crew.filter(c => 
+        !crew.some(other => other.id !== c.id && dist(c, other) < 200)
+      );
+
+      // Prefer to escort a lone crewmate
+      const escortTarget = loneCrew.length > 0
+        ? loneCrew.reduce((a, b) => dist(player, a) < dist(player, b) ? a : b)
+        : crew.reduce((a, b) => dist(player, a) < dist(player, b) ? a : b);
+
+      const distToTarget = dist(player, escortTarget);
+      if (distToTarget > 80) {
+        const dx = escortTarget.x - player.x;
+        const dy = escortTarget.y - player.y;
         const d = Math.max(1, Math.sqrt(dx * dx + dy * dy));
         player.direction = { x: dx / d, y: dy / d };
       } else {
+        // Stay close, patrol around the crewmate
         wanderAI(player, now);
       }
     } else {
