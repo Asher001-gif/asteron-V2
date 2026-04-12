@@ -21,16 +21,15 @@ const TASK_LABELS: Record<TaskType, string> = {
 };
 
 export function createTaskStations(): TaskStation[] {
-  // Positions inside rooms on the map
   const positions = [
-    // Biodome (top-left)
-    { x: 150, y: 200 }, { x: 250, y: 150 },
-    // Server room (top-right)
-    { x: 1050, y: 200 }, { x: 1250, y: 150 }, { x: 1150, y: 350 },
-    // Storage room (middle-left)
-    { x: 200, y: 650 }, { x: 400, y: 650 }, { x: 600, y: 620 },
-    // Open Mars area
-    { x: 800, y: 800 }, { x: 500, y: 1050 },
+    // Research room (top center, inside 550-1050, 40-340)
+    { x: 680, y: 150 }, { x: 850, y: 200 }, { x: 950, y: 120 },
+    // Ecosystem room (left, inside 40-390, 450-800)
+    { x: 150, y: 550 }, { x: 280, y: 680 }, { x: 150, y: 730 },
+    // Recover room (right, inside 1210-1560, 450-800)
+    { x: 1320, y: 550 }, { x: 1450, y: 680 },
+    // Open area
+    { x: 800, y: 900 }, { x: 500, y: 1050 },
   ];
 
   const types: TaskType[] = ['math', 'math', 'temperature', 'temperature',
@@ -60,7 +59,7 @@ export function generateTaskChallenge(station: TaskStation): TaskChallenge {
       return { type: 'math', stationId: station.id, prompt: `Solve: ${expr}`, answer: String(result) };
     }
     case 'temperature': {
-      const target = Math.floor(Math.random() * 30) + 15; // 15-44
+      const target = Math.floor(Math.random() * 30) + 15;
       return { type: 'temperature', stationId: station.id, prompt: `Set temperature to ${target}°C`, answer: '', targetTemp: target };
     }
     case 'email': {

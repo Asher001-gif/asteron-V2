@@ -10,49 +10,72 @@ export interface CollisionCircle {
   r: number;
 }
 
-// Room walls based on the map image (1600x1200 game coords)
-// Top-left biodome (triangle)
-// Top-right server room (rectangle)
-// Middle-left storage (rectangle)
-// Bottom-right rover (circle obstacle)
+// === Room definitions (1600x1200 map) ===
+// Research room: top-center, door at bottom
+// Ecosystem room: left-center, door on right
+// Recover room: right-center, door on left
 
-// Wall segments: players collide from outside but can walk through door openings
+const DOOR_WIDTH = 70;
+
 export const ROOM_WALLS: Wall[] = [
-  // === Top-left Biodome (triangular) ===
-  // Left edge (vertical)
-  { x1: 30, y1: 30, x2: 30, y2: 420 },
-  // Top edge (horizontal)
-  { x1: 30, y1: 30, x2: 380, y2: 30 },
-  // Diagonal wall with door gap
-  { x1: 380, y1: 30, x2: 250, y2: 250 },
-  { x1: 200, y1: 310, x2: 30, y2: 420 },
-
-  // === Top-right Server/Comms Room ===
+  // === Research Room (top center) ===
+  // Rect: x=550, y=40, w=500, h=300
   // Top wall
-  { x1: 950, y1: 30, x2: 1400, y2: 30 },
+  { x1: 550, y1: 40, x2: 1050, y2: 40 },
+  // Left wall
+  { x1: 550, y1: 40, x2: 550, y2: 340 },
   // Right wall
-  { x1: 1400, y1: 30, x2: 1400, y2: 480 },
-  // Bottom wall (door gap in middle)
-  { x1: 950, y1: 480, x2: 1100, y2: 480 },
-  { x1: 1200, y1: 480, x2: 1400, y2: 480 },
-  // Left wall
-  { x1: 950, y1: 30, x2: 950, y2: 480 },
+  { x1: 1050, y1: 40, x2: 1050, y2: 340 },
+  // Bottom wall with door gap in center (800±35)
+  { x1: 550, y1: 340, x2: 765, y2: 340 },
+  { x1: 835, y1: 340, x2: 1050, y2: 340 },
 
-  // === Middle-left Storage/Water Tank Room ===
+  // === Ecosystem Room (left center) ===
+  // Rect: x=40, y=450, w=350, h=350
   // Top wall
-  { x1: 80, y1: 560, x2: 700, y2: 560 },
-  // Bottom wall (door gap on right)
-  { x1: 80, y1: 740, x2: 550, y2: 740 },
+  { x1: 40, y1: 450, x2: 390, y2: 450 },
   // Left wall
-  { x1: 80, y1: 560, x2: 80, y2: 740 },
-  // Right wall (partial, door gap)
-  { x1: 700, y1: 560, x2: 700, y2: 640 },
+  { x1: 40, y1: 450, x2: 40, y2: 800 },
+  // Bottom wall
+  { x1: 40, y1: 800, x2: 390, y2: 800 },
+  // Right wall with door gap in center (625±35)
+  { x1: 390, y1: 450, x2: 390, y2: 590 },
+  { x1: 390, y1: 660, x2: 390, y2: 800 },
+
+  // === Recover Room (right center) ===
+  // Rect: x=1210, y=450, w=350, h=350
+  // Top wall
+  { x1: 1210, y1: 450, x2: 1560, y2: 450 },
+  // Right wall
+  { x1: 1560, y1: 450, x2: 1560, y2: 800 },
+  // Bottom wall
+  { x1: 1210, y1: 800, x2: 1560, y2: 800 },
+  // Left wall with door gap in center (625±35)
+  { x1: 1210, y1: 450, x2: 1210, y2: 590 },
+  { x1: 1210, y1: 660, x2: 1210, y2: 800 },
 ];
 
-// Rover obstacle (circular, impassable)
-export const ROVER_OBSTACLE: CollisionCircle = {
-  x: 1150, y: 900, r: 100,
-};
+// Decorative obstacles (circular, impassable)
+export const OBSTACLES: CollisionCircle[] = [
+  // Rock formations in the open area
+  { x: 800, y: 600, r: 40 },   // Center rock
+  { x: 600, y: 950, r: 30 },   // Bottom-left rock
+  { x: 1100, y: 1000, r: 35 }, // Bottom-right rock
+];
+
+// Room info for rendering
+export interface RoomInfo {
+  label: string;
+  x: number; y: number; w: number; h: number;
+  doorSide: 'top' | 'bottom' | 'left' | 'right';
+  doorCenter: number;
+}
+
+export const ROOMS: RoomInfo[] = [
+  { label: 'RESEARCH', x: 550, y: 40, w: 500, h: 300, doorSide: 'bottom', doorCenter: 800 },
+  { label: 'ECOSYSTEM', x: 40, y: 450, w: 350, h: 350, doorSide: 'right', doorCenter: 625 },
+  { label: 'RECOVER', x: 1210, y: 450, w: 350, h: 350, doorSide: 'left', doorCenter: 625 },
+];
 
 function pointToSegDist(px: number, py: number, x1: number, y1: number, x2: number, y2: number): { dist: number; nx: number; ny: number } {
   const dx = x2 - x1;
@@ -83,16 +106,17 @@ export function resolveCollisions(px: number, py: number): { x: number; y: numbe
     }
   }
 
-  // Rover collision
-  const rov = ROVER_OBSTACLE;
-  const rdx = x - rov.x;
-  const rdy = y - rov.y;
-  const rDist = Math.sqrt(rdx * rdx + rdy * rdy);
-  const minDist = rov.r + r;
-  if (rDist < minDist && rDist > 0) {
-    const push = minDist - rDist;
-    x += (rdx / rDist) * push;
-    y += (rdy / rDist) * push;
+  // Obstacle collisions
+  for (const obs of OBSTACLES) {
+    const dx = x - obs.x;
+    const dy = y - obs.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const minDist = obs.r + r;
+    if (dist < minDist && dist > 0) {
+      const push = minDist - dist;
+      x += (dx / dist) * push;
+      y += (dy / dist) * push;
+    }
   }
 
   return { x, y };
