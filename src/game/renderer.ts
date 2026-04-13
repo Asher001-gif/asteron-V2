@@ -203,6 +203,154 @@ function drawMarsSurface(ctx: CanvasRenderingContext2D, w: number, h: number) {
   ctx.strokeRect(0, 0, w, h);
 }
 
+/* ==================== ROOM DECORATIONS ==================== */
+
+function drawResearchDecor(ctx: CanvasRenderingContext2D, room: { x: number; y: number; w: number; h: number }) {
+  const rx = room.x, ry = room.y;
+
+  // Lab table (top-left)
+  ctx.fillStyle = 'rgba(100,110,130,0.4)';
+  ctx.fillRect(rx + 30, ry + 40, 80, 35);
+  ctx.strokeStyle = 'rgba(140,150,170,0.3)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(rx + 30, ry + 40, 80, 35);
+
+  // Monitor on table
+  ctx.fillStyle = 'rgba(60,180,220,0.25)';
+  ctx.fillRect(rx + 50, ry + 45, 30, 20);
+  ctx.fillStyle = 'rgba(60,180,220,0.15)';
+  ctx.fillRect(rx + 62, ry + 65, 6, 8);
+
+  // Lab table (right side)
+  ctx.fillStyle = 'rgba(100,110,130,0.4)';
+  ctx.fillRect(rx + room.w - 120, ry + 50, 90, 30);
+  ctx.strokeStyle = 'rgba(140,150,170,0.3)';
+  ctx.strokeRect(rx + room.w - 120, ry + 50, 90, 30);
+
+  // Beakers on right table
+  ctx.fillStyle = 'rgba(100,220,160,0.2)';
+  ctx.fillRect(rx + room.w - 105, ry + 52, 10, 22);
+  ctx.fillStyle = 'rgba(220,160,80,0.2)';
+  ctx.fillRect(rx + room.w - 85, ry + 55, 10, 19);
+
+  // Floor device (center-bottom area)
+  ctx.fillStyle = 'rgba(80,90,110,0.35)';
+  ctx.beginPath();
+  ctx.arc(rx + room.w / 2, ry + room.h - 80, 22, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(60,180,220,0.2)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  // Inner ring
+  ctx.beginPath();
+  ctx.arc(rx + room.w / 2, ry + room.h - 80, 10, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(60,180,220,0.15)';
+  ctx.fill();
+}
+
+function drawEcosystemDecor(ctx: CanvasRenderingContext2D, room: { x: number; y: number; w: number; h: number }) {
+  const rx = room.x, ry = room.y;
+
+  // Green patches (garden beds)
+  ctx.fillStyle = 'rgba(50,140,60,0.2)';
+  ctx.fillRect(rx + 25, ry + 30, 100, 60);
+  ctx.fillStyle = 'rgba(40,120,50,0.15)';
+  ctx.fillRect(rx + 25, ry + 30, 100, 60);
+  ctx.strokeStyle = 'rgba(60,160,70,0.2)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(rx + 25, ry + 30, 100, 60);
+
+  // Simple plant shapes (small circles as bushes)
+  const plants = [
+    { x: rx + 50, y: ry + 50 }, { x: rx + 80, y: ry + 55 },
+    { x: rx + 100, y: ry + 48 }, { x: rx + 65, y: ry + 70 },
+  ];
+  for (const p of plants) {
+    ctx.fillStyle = 'rgba(60,170,70,0.3)';
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(80,200,90,0.2)';
+    ctx.beginPath();
+    ctx.arc(p.x - 2, p.y - 2, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Second garden bed (bottom-right)
+  ctx.fillStyle = 'rgba(50,140,60,0.2)';
+  ctx.fillRect(rx + room.w - 140, ry + room.h - 100, 110, 65);
+  ctx.strokeStyle = 'rgba(60,160,70,0.2)';
+  ctx.strokeRect(rx + room.w - 140, ry + room.h - 100, 110, 65);
+
+  // Tree-like shapes
+  const trees = [
+    { x: rx + room.w - 110, y: ry + room.h - 75 },
+    { x: rx + room.w - 70, y: ry + room.h - 70 },
+  ];
+  for (const t of trees) {
+    // Trunk
+    ctx.fillStyle = 'rgba(100,70,40,0.25)';
+    ctx.fillRect(t.x - 3, t.y, 6, 15);
+    // Canopy
+    ctx.fillStyle = 'rgba(50,160,60,0.3)';
+    ctx.beginPath();
+    ctx.arc(t.x, t.y - 4, 12, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Water feature (small blue pool)
+  ctx.fillStyle = 'rgba(40,120,200,0.15)';
+  ctx.beginPath();
+  ctx.ellipse(rx + room.w / 2, ry + room.h / 2 + 30, 30, 18, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(60,150,220,0.2)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+}
+
+function drawRecoverDecor(ctx: CanvasRenderingContext2D, room: { x: number; y: number; w: number; h: number }) {
+  const rx = room.x, ry = room.y;
+
+  // Hospital beds (simple rectangles with headboards)
+  const beds = [
+    { x: rx + 30, y: ry + 40 },
+    { x: rx + 30, y: ry + 130 },
+    { x: rx + 30, y: ry + 220 },
+  ];
+  for (const b of beds) {
+    // Bed frame
+    ctx.fillStyle = 'rgba(90,100,120,0.35)';
+    ctx.fillRect(b.x, b.y, 70, 35);
+    ctx.strokeStyle = 'rgba(120,130,150,0.3)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(b.x, b.y, 70, 35);
+    // Pillow
+    ctx.fillStyle = 'rgba(200,200,220,0.15)';
+    ctx.fillRect(b.x + 2, b.y + 5, 18, 25);
+    // Blanket
+    ctx.fillStyle = 'rgba(80,140,200,0.12)';
+    ctx.fillRect(b.x + 22, b.y + 3, 45, 29);
+  }
+
+  // Energy panel / battery (right side)
+  ctx.fillStyle = 'rgba(80,90,110,0.35)';
+  ctx.fillRect(rx + room.w - 90, ry + 60, 55, 80);
+  ctx.strokeStyle = 'rgba(100,200,100,0.25)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(rx + room.w - 90, ry + 60, 55, 80);
+  // Battery bars
+  for (let i = 0; i < 4; i++) {
+    ctx.fillStyle = `rgba(80,200,100,${0.15 + i * 0.05})`;
+    ctx.fillRect(rx + room.w - 82, ry + 122 - i * 16, 39, 12);
+  }
+
+  // Medical cross symbol (bottom area)
+  ctx.fillStyle = 'rgba(220,60,60,0.2)';
+  const cx = rx + room.w / 2 + 40, cy = ry + room.h - 60;
+  ctx.fillRect(cx - 4, cy - 14, 8, 28);
+  ctx.fillRect(cx - 14, cy - 4, 28, 8);
+}
+
 /* ==================== TASK STATIONS ==================== */
 
 function drawTaskStations(ctx: CanvasRenderingContext2D, state: GameState) {
