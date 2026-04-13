@@ -43,6 +43,16 @@ export interface Player {
   taskProgress: number; // 0-1
 }
 
+export interface FreezeProjectile {
+  x: number;
+  y: number;
+  targetX: number;
+  targetY: number;
+  speed: number;
+  startTime: number;
+  duration: number; // ms
+}
+
 export interface GameState {
   players: Player[];
   phase: 'lobby' | 'playing' | 'gameover';
@@ -53,7 +63,8 @@ export interface GameState {
   taskStations: TaskStation[];
   tasksCompleted: number;
   totalTasks: number;
-  activeTask: TaskChallenge | null; // for human player UI
+  activeTask: TaskChallenge | null;
+  projectiles: FreezeProjectile[];
 }
 
 export const PLAYER_RADIUS = 18;

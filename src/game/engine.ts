@@ -77,6 +77,7 @@ export function createGame(playerRole: Role): GameState {
     tasksCompleted: 0,
     totalTasks: TOTAL_TASKS,
     activeTask: null,
+    projectiles: [],
   };
 }
 
@@ -266,8 +267,17 @@ function performAIActions(player: Player, allPlayers: Player[], state: GameState
   if (player.role === 'protector' && player.freezeCooldown <= 0) {
     const targets = visible.filter(p => p.role === 'imposter' && !p.frozen && dist(player, p) < FREEZE_RANGE);
     if (targets.length > 0) {
-      targets[0].frozen = true;
-      targets[0].frozenUntil = now + FREEZE_DURATION;
+      const target = targets[0];
+      // Spawn projectile
+      state.projectiles.push({
+        x: player.x, y: player.y,
+        targetX: target.x, targetY: target.y,
+        speed: 6,
+        startTime: now,
+        duration: 300,
+      });
+      target.frozen = true;
+      target.frozenUntil = now + FREEZE_DURATION;
       player.freezeCooldown = FREEZE_COOLDOWN;
     }
   }
@@ -347,6 +357,9 @@ export function updateGame(state: GameState, dt: number, keys: Set<string>, now:
     p.y = resolved.y;
   }
 
+  // Remove expired projectiles
+  state.projectiles = state.projectiles.filter(p => now - p.startTime < p.duration);
+
   // Win: all tasks completed
   if (state.tasksCompleted >= state.totalTasks) {
     return { ...state, phase: 'gameover', winner: 'crew', timeElapsed: state.timeElapsed + dt };
@@ -381,8 +394,16 @@ export function humanFreeze(state: GameState, now: number): boolean {
   
   const targets = state.players.filter(p => p.alive && p.role === 'imposter' && !p.frozen && dist(human, p) < FREEZE_RANGE);
   if (targets.length > 0) {
-    targets[0].frozen = true;
-    targets[0].frozenUntil = now + FREEZE_DURATION;
+    const target = targets[0];
+    state.projectiles.push({
+      x: human.x, y: human.y,
+      targetX: target.x, targetY: target.y,
+      speed: 6,
+      startTime: now,
+      duration: 300,
+    });
+    target.frozen = true;
+    target.frozenUntil = now + FREEZE_DURATION;
     human.freezeCooldown = FREEZE_COOLDOWN;
     return true;
   }
