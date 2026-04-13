@@ -5,12 +5,32 @@ import {
 } from './types';
 import { createTaskStations } from './tasks';
 import { resolveCollisions } from './collision';
+import { getNavigationDirection, getRoomAt } from './navigation';
 
 const NAMES = ['Astro', 'Nova', 'Blaze', 'Comet', 'Orbit', 'Dust', 'Nebula', 'Crater', 'Titan', 'Cosmo'];
+
+// Vision radii - bots can only see within these
+const BOT_VISION: Record<Role, number> = {
+  crewmate: 220,
+  protector: 170,
+  imposter: 120,
+};
 
 function dist(a: { x: number; y: number }, b: { x: number; y: number }) {
   return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
 }
+
+// Patrol waypoints spread across the map
+const PATROL_POINTS = [
+  { x: 800, y: 200 },   // near research
+  { x: 200, y: 625 },   // near ecosystem
+  { x: 1400, y: 625 },  // near recover
+  { x: 800, y: 900 },   // bottom center
+  { x: 400, y: 300 },   // top left
+  { x: 1200, y: 300 },  // top right
+  { x: 400, y: 1000 },  // bottom left
+  { x: 1200, y: 1000 }, // bottom right
+];
 
 export function createGame(playerRole: Role): GameState {
   const roles: Role[] = ['imposter', 'imposter', 'protector', 'protector',
@@ -34,7 +54,7 @@ export function createGame(playerRole: Role): GameState {
     frozenUntil: 0,
     name: NAMES[i],
     isHuman: i === 0,
-    speed: role === 'imposter' ? 2.8 : role === 'protector' ? 2.5 : 2.2,
+    speed: role === 'imposter' ? 2.4 : 2.2,
     direction: { x: 0, y: 0 },
     aiTargetX: MAP_WIDTH / 2,
     aiTargetY: MAP_HEIGHT / 2,
@@ -60,113 +80,153 @@ export function createGame(playerRole: Role): GameState {
   };
 }
 
-function updateAI(player: Player, allPlayers: Player[], now: number) {
+// Get visible players within bot's vision radius
+function getVisiblePlayers(player: Player, allPlayers: Player[]): Player[] {
+  const vision = BOT_VISION[player.role];
+  return allPlayers.filter(p => p.id !== player.id && p.alive && dist(player, p) <= vision);
+}
+
+function updateAI(player: Player, allPlayers: Player[], state: GameState, now: number) {
   if (!player.alive || player.frozen || player.isHuman) return;
 
-  const alive = allPlayers.filter(p => p.alive && p.id !== player.id);
+  const visible = getVisiblePlayers(player, allPlayers);
 
   if (player.role === 'imposter') {
-    // Priority: target crewmates only, can't kill protectors
-    const crewTargets = alive.filter(p => p.role === 'crewmate');
-    if (crewTargets.length === 0) {
-      wanderAI(player, now);
-      return;
-    }
-    const nearest = crewTargets.reduce((a, b) => dist(player, a) < dist(player, b) ? a : b);
-
-    // Flee from nearby protectors to avoid being frozen
-    const nearbyProtector = alive.find(p => p.role === 'protector' && dist(player, p) < 200);
-    if (nearbyProtector && Math.random() < 0.7) {
-      const dx = player.x - nearbyProtector.x;
-      const dy = player.y - nearbyProtector.y;
-      const d = Math.max(1, Math.sqrt(dx * dx + dy * dy));
-      player.direction = { x: dx / d, y: dy / d };
-    } else {
-      const dx = nearest.x - player.x;
-      const dy = nearest.y - player.y;
-      const d = Math.max(1, Math.sqrt(dx * dx + dy * dy));
-      player.direction = { x: dx / d, y: dy / d };
-    }
+    aiImposterBehavior(player, visible, now);
   } else if (player.role === 'protector') {
-    // Protector: stay with crew, rush to save threatened crew, freeze imposters near crew
-    const crew = alive.filter(p => p.role === 'crewmate');
-    const imposters = alive.filter(p => p.role === 'imposter');
-    
-    // 1. Find any crew under direct threat (imposter within 250px of a crewmate)
-    const threatenedCrew = crew.filter(c => 
-      imposters.some(imp => dist(imp, c) < 250)
-    );
-
-    // 2. Find the threatening imposter closest to any threatened crew
-    const threateningImposter = threatenedCrew.length > 0
-      ? imposters
-          .filter(imp => threatenedCrew.some(c => dist(imp, c) < 250))
-          .reduce((a, b) => {
-            const aDist = Math.min(...threatenedCrew.map(c => dist(a, c)));
-            const bDist = Math.min(...threatenedCrew.map(c => dist(b, c)));
-            return aDist < bDist ? a : b;
-          }, imposters[0])
-      : null;
-
-    if (threateningImposter) {
-      // Rush towards the threatening imposter to freeze them
-      const dx = threateningImposter.x - player.x;
-      const dy = threateningImposter.y - player.y;
-      const d = Math.max(1, Math.sqrt(dx * dx + dy * dy));
-      player.direction = { x: dx / d, y: dy / d };
-    } else if (crew.length > 0) {
-      // 3. Find lone crewmates (no other crew within 200px)
-      const loneCrew = crew.filter(c => 
-        !crew.some(other => other.id !== c.id && dist(c, other) < 200)
-      );
-
-      // Prefer to escort a lone crewmate
-      const escortTarget = loneCrew.length > 0
-        ? loneCrew.reduce((a, b) => dist(player, a) < dist(player, b) ? a : b)
-        : crew.reduce((a, b) => dist(player, a) < dist(player, b) ? a : b);
-
-      const distToTarget = dist(player, escortTarget);
-      if (distToTarget > 80) {
-        const dx = escortTarget.x - player.x;
-        const dy = escortTarget.y - player.y;
-        const d = Math.max(1, Math.sqrt(dx * dx + dy * dy));
-        player.direction = { x: dx / d, y: dy / d };
-      } else {
-        // Stay close, patrol around the crewmate
-        wanderAI(player, now);
-      }
-    } else {
-      wanderAI(player, now);
-    }
+    aiProtectorBehavior(player, visible, allPlayers, now);
   } else {
-    // Crewmate AI: dedicated to tasks
-    aiCrewmateBehavior(player, allPlayers, now);
+    aiCrewmateBehavior(player, visible, state, now);
   }
 }
 
-function aiCrewmateBehavior(player: Player, allPlayers: Player[], now: number) {
-  const imposters = allPlayers.filter(p => p.alive && p.role === 'imposter');
-  const nearestImposter = imposters.length > 0
-    ? imposters.reduce((a, b) => dist(player, a) < dist(player, b) ? a : b)
+function aiImposterBehavior(player: Player, visible: Player[], now: number) {
+  // Only react to visible players
+  const visibleCrew = visible.filter(p => p.role === 'crewmate');
+  const visibleProtectors = visible.filter(p => p.role === 'protector');
+
+  // Flee from nearby protectors
+  const nearbyProtector = visibleProtectors.find(p => dist(player, p) < 180);
+  if (nearbyProtector && Math.random() < 0.7) {
+    const dir = getNavigationDirection(player.x, player.y,
+      player.x + (player.x - nearbyProtector.x),
+      player.y + (player.y - nearbyProtector.y));
+    player.direction = dir;
+    return;
+  }
+
+  // Hunt visible crewmates
+  if (visibleCrew.length > 0) {
+    const nearest = visibleCrew.reduce((a, b) => dist(player, a) < dist(player, b) ? a : b);
+    player.direction = getNavigationDirection(player.x, player.y, nearest.x, nearest.y);
+    return;
+  }
+
+  // No targets visible - explore
+  wanderAI(player, now);
+}
+
+function aiProtectorBehavior(player: Player, visible: Player[], allPlayers: Player[], now: number) {
+  const visibleCrew = visible.filter(p => p.role === 'crewmate');
+  const visibleImposters = visible.filter(p => p.role === 'imposter');
+
+  // Find the other protector to coordinate
+  const otherProtector = allPlayers.find(p => p.id !== player.id && p.role === 'protector' && p.alive);
+
+  // Check if any visible crew is in danger (imposter within 200px of them)
+  const endangeredCrew = visibleCrew.filter(c =>
+    visibleImposters.some(imp => dist(imp, c) < 200)
+  );
+
+  if (endangeredCrew.length > 0) {
+    // Find the threatening imposter closest to endangered crew
+    const threatImposter = visibleImposters
+      .filter(imp => endangeredCrew.some(c => dist(imp, c) < 200))
+      .reduce((a, b) => {
+        const aD = Math.min(...endangeredCrew.map(c => dist(a, c)));
+        const bD = Math.min(...endangeredCrew.map(c => dist(b, c)));
+        return aD < bD ? a : b;
+      });
+
+    // Rush to help - move toward the threatening imposter
+    player.direction = getNavigationDirection(player.x, player.y, threatImposter.x, threatImposter.y);
+    return;
+  }
+
+  // No immediate danger - patrol the map
+  // Each protector patrols different waypoints based on their ID
+  patrolAI(player, otherProtector, now);
+}
+
+function patrolAI(player: Player, otherProtector: Player | undefined, now: number) {
+  if (now > player.aiChangeTime) {
+    // Pick a patrol point, prefer points far from the other protector
+    let bestPoint = PATROL_POINTS[Math.floor(Math.random() * PATROL_POINTS.length)];
+    
+    if (otherProtector) {
+      // Sort patrol points by distance from other protector (prefer far ones)
+      const sorted = [...PATROL_POINTS].sort((a, b) => {
+        const dA = dist(otherProtector, a);
+        const dB = dist(otherProtector, b);
+        return dB - dA; // farther from other protector = better
+      });
+      // Pick from top 3 farthest points randomly
+      bestPoint = sorted[Math.floor(Math.random() * Math.min(3, sorted.length))];
+    }
+
+    player.aiTargetX = bestPoint.x + (Math.random() - 0.5) * 100;
+    player.aiTargetY = bestPoint.y + (Math.random() - 0.5) * 100;
+    player.aiChangeTime = now + 3000 + Math.random() * 2000;
+  }
+
+  const d = dist(player, { x: player.aiTargetX, y: player.aiTargetY });
+  if (d < 30) {
+    // Reached waypoint, pick next one soon
+    player.aiChangeTime = now + 500;
+    player.direction = { x: 0, y: 0 };
+    return;
+  }
+
+  player.direction = getNavigationDirection(player.x, player.y, player.aiTargetX, player.aiTargetY);
+}
+
+function aiCrewmateBehavior(player: Player, visible: Player[], state: GameState, now: number) {
+  const visibleImposters = visible.filter(p => p.role === 'imposter');
+
+  // Flee if imposter is very close
+  const nearestImposter = visibleImposters.length > 0
+    ? visibleImposters.reduce((a, b) => dist(player, a) < dist(player, b) ? a : b)
     : null;
 
-  // Only flee if imposter is very close (150px), stay dedicated to tasks
   if (nearestImposter && dist(player, nearestImposter) < 150) {
     player.doingTask = false;
     player.taskStationId = null;
     player.taskProgress = 0;
-    const dx = player.x - nearestImposter.x;
-    const dy = player.y - nearestImposter.y;
-    const d = Math.max(1, Math.sqrt(dx * dx + dy * dy));
-    player.direction = { x: dx / d, y: dy / d };
+    // Flee away from imposter using navigation
+    const fleeX = player.x + (player.x - nearestImposter.x);
+    const fleeY = player.y + (player.y - nearestImposter.y);
+    player.direction = getNavigationDirection(player.x, player.y, fleeX, fleeY);
     return;
   }
 
+  // If doing a task, stay put
   if (player.doingTask) {
     player.direction = { x: 0, y: 0 };
     return;
   }
 
+  // Look for nearby incomplete tasks within vision
+  const vision = BOT_VISION[player.role];
+  const nearbyTasks = state.taskStations.filter(t => !t.completed && dist(player, t) <= vision);
+
+  if (nearbyTasks.length > 0) {
+    // Move toward closest task
+    const closest = nearbyTasks.reduce((a, b) => dist(player, a) < dist(player, b) ? a : b);
+    player.direction = getNavigationDirection(player.x, player.y, closest.x, closest.y);
+    return;
+  }
+
+  // No nearby tasks - explore randomly
   wanderAI(player, now);
 }
 
@@ -176,18 +236,25 @@ function wanderAI(player: Player, now: number) {
     player.aiTargetY = 100 + Math.random() * (MAP_HEIGHT - 200);
     player.aiChangeTime = now + 2000 + Math.random() * 3000;
   }
-  const dx = player.aiTargetX - player.x;
-  const dy = player.aiTargetY - player.y;
-  const d = Math.max(1, Math.sqrt(dx * dx + dy * dy));
-  player.direction = { x: dx / d, y: dy / d };
+
+  const d = dist(player, { x: player.aiTargetX, y: player.aiTargetY });
+  if (d < 30) {
+    player.aiChangeTime = now + 500;
+    player.direction = { x: 0, y: 0 };
+    return;
+  }
+
+  player.direction = getNavigationDirection(player.x, player.y, player.aiTargetX, player.aiTargetY);
 }
 
 function performAIActions(player: Player, allPlayers: Player[], state: GameState, now: number) {
   if (!player.alive || player.frozen || player.isHuman) return;
 
+  const visible = getVisiblePlayers(player, allPlayers);
+
   if (player.role === 'imposter' && player.killCooldown <= 0) {
-    // Can only kill crewmates, NOT protectors
-    const targets = allPlayers.filter(p => p.alive && p.role === 'crewmate' && dist(player, p) < KILL_RANGE);
+    // Can only kill visible crewmates within kill range
+    const targets = visible.filter(p => p.role === 'crewmate' && dist(player, p) < KILL_RANGE);
     if (targets.length > 0) {
       targets[0].alive = false;
       targets[0].doingTask = false;
@@ -197,7 +264,7 @@ function performAIActions(player: Player, allPlayers: Player[], state: GameState
   }
 
   if (player.role === 'protector' && player.freezeCooldown <= 0) {
-    const targets = allPlayers.filter(p => p.alive && p.role === 'imposter' && !p.frozen && dist(player, p) < FREEZE_RANGE);
+    const targets = visible.filter(p => p.role === 'imposter' && !p.frozen && dist(player, p) < FREEZE_RANGE);
     if (targets.length > 0) {
       targets[0].frozen = true;
       targets[0].frozenUntil = now + FREEZE_DURATION;
@@ -205,22 +272,20 @@ function performAIActions(player: Player, allPlayers: Player[], state: GameState
     }
   }
 
-  // AI crewmate task completion
+  // AI crewmate task start
   if (player.role === 'crewmate' && !player.doingTask) {
     const incompleteTasks = state.taskStations.filter(t => !t.completed);
-    if (incompleteTasks.length > 0) {
-      const nearTask = incompleteTasks.find(t => dist(player, t) < TASK_RANGE);
-      if (nearTask) {
-        player.doingTask = true;
-        player.taskStationId = nearTask.id;
-        player.taskProgress = 0;
-      }
+    const nearTask = incompleteTasks.find(t => dist(player, t) < TASK_RANGE);
+    if (nearTask) {
+      player.doingTask = true;
+      player.taskStationId = nearTask.id;
+      player.taskProgress = 0;
     }
   }
 
   // Progress AI task
   if (player.role === 'crewmate' && player.doingTask && player.taskStationId !== null) {
-    player.taskProgress += 0.004; // ~4-5 seconds
+    player.taskProgress += 0.004;
     if (player.taskProgress >= 1) {
       const station = state.taskStations.find(t => t.id === player.taskStationId);
       if (station && !station.completed) {
@@ -268,7 +333,7 @@ export function updateGame(state: GameState, dt: number, keys: Set<string>, now:
     if (p.freezeCooldown > 0) p.freezeCooldown -= dt;
 
     if (!p.isHuman) {
-      updateAI(p, state.players, now);
+      updateAI(p, state.players, state, now);
       performAIActions(p, state.players, state, now);
     }
 
@@ -277,7 +342,6 @@ export function updateGame(state: GameState, dt: number, keys: Set<string>, now:
     p.x = Math.max(PLAYER_RADIUS, Math.min(state.mapWidth - PLAYER_RADIUS, p.x));
     p.y = Math.max(PLAYER_RADIUS, Math.min(state.mapHeight - PLAYER_RADIUS, p.y));
 
-    // Resolve wall & rover collisions
     const resolved = resolveCollisions(p.x, p.y);
     p.x = resolved.x;
     p.y = resolved.y;
