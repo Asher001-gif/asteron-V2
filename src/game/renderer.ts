@@ -1,7 +1,8 @@
-import { GameState, Player, PLAYER_RADIUS, TASK_RANGE } from './types';
+import { GameState, Player, PLAYER_RADIUS, TASK_RANGE, FreezeProjectile } from './types';
 import { ROOM_WALLS, OBSTACLES, ROOMS } from './collision';
 
 const FROZEN_COLOR = '#40d8f0';
+let animTime = 0;
 
 // Vision radii per role
 const VISION_RADIUS: Record<string, number> = {
