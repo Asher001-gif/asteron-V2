@@ -30,6 +30,8 @@ export function renderGame(
 
   ctx.translate(-camX, -camY);
 
+  animTime = performance.now();
+
   drawMarsSurface(ctx, state.mapWidth, state.mapHeight);
   drawTaskStations(ctx, state);
 
@@ -39,6 +41,9 @@ export function renderGame(
   for (const p of state.players) {
     if (p.alive) drawPlayer(ctx, p, human);
   }
+
+  // Draw projectiles
+  drawProjectiles(ctx, state.projectiles);
 
   ctx.restore();
 
