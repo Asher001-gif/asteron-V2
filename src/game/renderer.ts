@@ -406,12 +406,14 @@ function drawTaskStations(ctx: CanvasRenderingContext2D, state: GameState) {
 
 function drawPlayer(ctx: CanvasRenderingContext2D, p: Player, human: Player) {
   const x = p.x;
-  const y = p.y;
   const s = 1.0;
+  const isMoving = Math.abs(p.direction.x) > 0.1 || Math.abs(p.direction.y) > 0.1;
+  const walkBob = isMoving && !p.frozen && !p.doingTask ? Math.sin(animTime * 0.012 + p.id * 2) * 3 : 0;
+  const y = p.y + walkBob;
 
   if (p.frozen) {
     ctx.beginPath();
-    ctx.arc(x, y, 28 * s, 0, Math.PI * 2);
+    ctx.arc(x, p.y, 28 * s, 0, Math.PI * 2);
     ctx.fillStyle = 'rgba(64, 216, 240, 0.2)';
     ctx.fill();
     ctx.strokeStyle = FROZEN_COLOR;
@@ -426,6 +428,21 @@ function drawPlayer(ctx: CanvasRenderingContext2D, p: Player, human: Player) {
     ctx.arc(x, y - 5 * s, 26 * s, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * p.taskProgress);
     ctx.strokeStyle = '#ffd700';
     ctx.lineWidth = 3;
+    ctx.stroke();
+  }
+
+  // Walking legs animation
+  if (isMoving && !p.frozen && !p.doingTask && p.alive) {
+    const legSwing = Math.sin(animTime * 0.015 + p.id * 2) * 5;
+    ctx.strokeStyle = '#888';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x - 5, y + 18 * s);
+    ctx.lineTo(x - 5 - legSwing, y + 26 * s);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x + 5, y + 18 * s);
+    ctx.lineTo(x + 5 + legSwing, y + 26 * s);
     ctx.stroke();
   }
 
@@ -446,6 +463,35 @@ function drawPlayer(ctx: CanvasRenderingContext2D, p: Player, human: Player) {
     ctx.fillStyle = '#ffd700';
     ctx.font = 'bold 10px monospace';
     ctx.fillText('▼ YOU', x, y - 40 * s);
+  }
+}
+
+/* ==================== PROJECTILES ==================== */
+
+function drawProjectiles(ctx: CanvasRenderingContext2D, projectiles: FreezeProjectile[]) {
+  const now = performance.now();
+  for (const proj of projectiles) {
+    const t = Math.min(1, (now - proj.startTime) / proj.duration);
+    const px = proj.x + (proj.targetX - proj.x) * t;
+    const py = proj.y + (proj.targetY - proj.y) * t;
+
+    // Glow trail
+    ctx.beginPath();
+    ctx.arc(px, py, 8, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(64, 216, 240, 0.3)';
+    ctx.fill();
+
+    // Core bullet
+    ctx.beginPath();
+    ctx.arc(px, py, 4, 0, Math.PI * 2);
+    ctx.fillStyle = '#40d8f0';
+    ctx.fill();
+
+    // Small sparkle
+    ctx.beginPath();
+    ctx.arc(px, py, 2, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff';
+    ctx.fill();
   }
 }
 
