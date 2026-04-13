@@ -117,6 +117,11 @@ function drawMarsSurface(ctx: CanvasRenderingContext2D, w: number, h: number) {
     ctx.font = 'bold 28px monospace';
     ctx.textAlign = 'center';
     ctx.fillText(room.label, room.x + room.w / 2, room.y + room.h / 2 + 10);
+
+    // Room-specific decorations
+    if (room.label === 'RESEARCH') drawResearchDecor(ctx, room);
+    else if (room.label === 'ECOSYSTEM') drawEcosystemDecor(ctx, room);
+    else if (room.label === 'RECOVER') drawRecoverDecor(ctx, room);
   }
 
   // Draw walls (thick black)
