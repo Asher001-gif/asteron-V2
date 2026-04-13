@@ -357,6 +357,9 @@ export function updateGame(state: GameState, dt: number, keys: Set<string>, now:
     p.y = resolved.y;
   }
 
+  // Remove expired projectiles
+  state.projectiles = state.projectiles.filter(p => now - p.startTime < p.duration);
+
   // Win: all tasks completed
   if (state.tasksCompleted >= state.totalTasks) {
     return { ...state, phase: 'gameover', winner: 'crew', timeElapsed: state.timeElapsed + dt };
