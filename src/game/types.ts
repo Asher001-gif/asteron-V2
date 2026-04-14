@@ -1,6 +1,16 @@
 export type Role = 'imposter' | 'crewmate' | 'protector';
 
-export type TaskType = 'math' | 'temperature' | 'email' | 'scan';
+export type TaskType =
+  | 'frequency'
+  | 'morse'
+  | 'satellite'
+  | 'backup'
+  | 'solar'
+  | 'power'
+  | 'magnetic'
+  | 'password'
+  | 'ice'
+  | 'dna';
 
 export interface TaskStation {
   id: number;
@@ -15,10 +25,21 @@ export interface TaskChallenge {
   type: TaskType;
   stationId: number;
   prompt: string;
-  answer: string;        // correct answer for math
-  duration?: number;      // for scan tasks (ms)
-  topic?: string;         // for email tasks
-  targetTemp?: number;    // for temp tasks
+  answer: string;
+  // frequency
+  targetAngle?: number;
+  // morse
+  morsePattern?: ('short' | 'long')[];
+  // satellite
+  targetRotation?: number;
+  // backup - auto progress
+  duration?: number;
+  // password
+  passwordDigits?: string;
+  // dna
+  dnaOffset?: number;
+  // ice
+  tapsRequired?: number;
 }
 
 export interface Player {
