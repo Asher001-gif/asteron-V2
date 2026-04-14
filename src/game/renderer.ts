@@ -498,201 +498,327 @@ function drawProjectiles(ctx: CanvasRenderingContext2D, projectiles: FreezeProje
 function drawCrewmateChar(ctx: CanvasRenderingContext2D, x: number, y: number, s: number, frozen: boolean) {
   const bodyColor = frozen ? FROZEN_COLOR : '#e8e8e8';
   const accentColor = frozen ? '#80e8f8' : '#4a90d9';
+  const outlineColor = frozen ? '#6ac8d8' : '#888';
 
+  // Body - egg/oval shape (white)
   ctx.beginPath();
-  ctx.ellipse(x, y + 2 * s, 16 * s, 20 * s, 0, 0, Math.PI * 2);
+  ctx.ellipse(x, y + 4 * s, 15 * s, 18 * s, 0, 0, Math.PI * 2);
   ctx.fillStyle = bodyColor;
   ctx.fill();
-  ctx.strokeStyle = '#aaa';
+  ctx.strokeStyle = outlineColor;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Ear flaps (left and right)
+  ctx.beginPath();
+  ctx.ellipse(x - 14 * s, y + 2 * s, 5 * s, 10 * s, -0.15, 0, Math.PI * 2);
+  ctx.fillStyle = bodyColor;
+  ctx.fill();
+  ctx.strokeStyle = outlineColor;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.ellipse(x + 14 * s, y + 2 * s, 5 * s, 10 * s, 0.15, 0, Math.PI * 2);
+  ctx.fillStyle = bodyColor;
+  ctx.fill();
+  ctx.strokeStyle = outlineColor;
   ctx.lineWidth = 1.5;
   ctx.stroke();
 
+  // Helmet dome (top)
   ctx.beginPath();
-  ctx.arc(x, y - 12 * s, 14 * s, Math.PI, 0);
+  ctx.arc(x, y - 10 * s, 13 * s, Math.PI, 0);
   ctx.fillStyle = bodyColor;
   ctx.fill();
-  ctx.strokeStyle = '#aaa';
+  ctx.strokeStyle = outlineColor;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Visor (dark dome with cyan tint)
+  ctx.beginPath();
+  ctx.ellipse(x, y - 8 * s, 10 * s, 8 * s, 0, 0, Math.PI * 2);
+  ctx.fillStyle = frozen ? '#1a3a4a' : '#1a2a3a';
+  ctx.fill();
+  ctx.strokeStyle = frozen ? '#4ac8d8' : '#3a5a7a';
   ctx.lineWidth = 1.5;
   ctx.stroke();
 
+  // ^^ Eyes (cyan chevrons)
+  ctx.strokeStyle = accentColor;
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round';
+  // Left ^
   ctx.beginPath();
-  ctx.ellipse(x, y - 10 * s, 10 * s, 7 * s, 0, 0, Math.PI * 2);
-  ctx.fillStyle = '#1a2a3a';
+  ctx.moveTo(x - 7 * s, y - 6 * s);
+  ctx.lineTo(x - 4 * s, y - 11 * s);
+  ctx.lineTo(x - 1 * s, y - 6 * s);
+  ctx.stroke();
+  // Right ^
+  ctx.beginPath();
+  ctx.moveTo(x + 1 * s, y - 6 * s);
+  ctx.lineTo(x + 4 * s, y - 11 * s);
+  ctx.lineTo(x + 7 * s, y - 6 * s);
+  ctx.stroke();
+  ctx.lineCap = 'butt';
+
+  // Collar ring (white band between head and body)
+  ctx.beginPath();
+  ctx.ellipse(x, y - 2 * s, 13 * s, 4 * s, 0, 0, Math.PI * 2);
+  ctx.fillStyle = frozen ? '#b0e8f0' : '#d0d0d0';
   ctx.fill();
-  ctx.strokeStyle = '#555';
+  ctx.strokeStyle = outlineColor;
   ctx.lineWidth = 1;
   ctx.stroke();
 
-  ctx.strokeStyle = accentColor;
-  ctx.lineWidth = 2;
+  // Left arm antenna with blue orb
   ctx.beginPath();
-  ctx.moveTo(x - 5 * s, y - 9 * s);
-  ctx.lineTo(x - 3 * s, y - 12 * s);
-  ctx.lineTo(x - 1 * s, y - 9 * s);
+  ctx.moveTo(x - 10 * s, y + 8 * s);
+  ctx.lineTo(x - 16 * s, y + 20 * s);
+  ctx.strokeStyle = outlineColor;
+  ctx.lineWidth = 2.5;
   ctx.stroke();
+  // Blue orb
   ctx.beginPath();
-  ctx.moveTo(x + 1 * s, y - 9 * s);
-  ctx.lineTo(x + 3 * s, y - 12 * s);
-  ctx.lineTo(x + 5 * s, y - 9 * s);
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.moveTo(x - 8 * s, y + 8 * s);
-  ctx.lineTo(x - 14 * s, y + 18 * s);
-  ctx.strokeStyle = '#888';
-  ctx.lineWidth = 2;
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(x - 14 * s, y + 20 * s, 4 * s, 0, Math.PI * 2);
+  ctx.arc(x - 16 * s, y + 22 * s, 5 * s, 0, Math.PI * 2);
   ctx.fillStyle = accentColor;
   ctx.fill();
+  ctx.strokeStyle = frozen ? '#5ab8d0' : '#3a70b0';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  // Orb glow
   ctx.beginPath();
-  ctx.arc(x - 14 * s, y + 20 * s, 6 * s, 0, Math.PI * 2);
-  ctx.fillStyle = frozen ? 'rgba(64,216,240,0.3)' : 'rgba(74,144,217,0.3)';
+  ctx.arc(x - 16 * s, y + 22 * s, 7 * s, 0, Math.PI * 2);
+  ctx.fillStyle = frozen ? 'rgba(64,216,240,0.2)' : 'rgba(74,144,217,0.25)';
+  ctx.fill();
+  // Orb shine
+  ctx.beginPath();
+  ctx.arc(x - 18 * s, y + 20 * s, 1.5 * s, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.6)';
   ctx.fill();
 }
 
 function drawImposterChar(ctx: CanvasRenderingContext2D, x: number, y: number, s: number, frozen: boolean) {
-  const bodyColor = frozen ? FROZEN_COLOR : '#888';
+  const bodyColor = frozen ? FROZEN_COLOR : '#777';
+  const darkBody = frozen ? '#6ac8d8' : '#555';
   const accentColor = frozen ? '#80e8f8' : '#e03030';
+  const outlineColor = frozen ? '#5ab8c8' : '#444';
 
+  // Knife arms (behind body) - angular dark blades
+  ctx.save();
+  // Left knife arm
   ctx.beginPath();
-  ctx.ellipse(x, y + 2 * s, 17 * s, 20 * s, 0, 0, Math.PI * 2);
+  ctx.moveTo(x - 14 * s, y + 2 * s);
+  ctx.lineTo(x - 24 * s, y - 10 * s);
+  ctx.lineTo(x - 22 * s, y - 16 * s);
+  ctx.lineTo(x - 18 * s, y - 12 * s);
+  ctx.closePath();
+  ctx.fillStyle = frozen ? '#5ab8c8' : '#3a3a3a';
+  ctx.fill();
+  ctx.strokeStyle = outlineColor;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  // Right knife arm
+  ctx.beginPath();
+  ctx.moveTo(x + 14 * s, y + 2 * s);
+  ctx.lineTo(x + 24 * s, y - 10 * s);
+  ctx.lineTo(x + 22 * s, y - 16 * s);
+  ctx.lineTo(x + 18 * s, y - 12 * s);
+  ctx.closePath();
+  ctx.fillStyle = frozen ? '#5ab8c8' : '#3a3a3a';
+  ctx.fill();
+  ctx.strokeStyle = outlineColor;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.restore();
+
+  // Body - slightly wider egg (dark gray)
+  ctx.beginPath();
+  ctx.ellipse(x, y + 4 * s, 16 * s, 19 * s, 0, 0, Math.PI * 2);
   ctx.fillStyle = bodyColor;
   ctx.fill();
-  ctx.strokeStyle = '#555';
-  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = outlineColor;
+  ctx.lineWidth = 2;
   ctx.stroke();
 
+  // Helmet dome (darker gray)
   ctx.beginPath();
-  ctx.arc(x, y - 12 * s, 14 * s, Math.PI, 0);
-  ctx.fillStyle = frozen ? FROZEN_COLOR : '#666';
+  ctx.arc(x, y - 10 * s, 14 * s, Math.PI, 0);
+  ctx.fillStyle = darkBody;
   ctx.fill();
-  ctx.strokeStyle = '#444';
-  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = outlineColor;
+  ctx.lineWidth = 2;
   ctx.stroke();
 
+  // Visor (very dark)
   ctx.beginPath();
-  ctx.ellipse(x, y - 10 * s, 10 * s, 7 * s, 0, 0, Math.PI * 2);
-  ctx.fillStyle = '#1a1a1a';
+  ctx.ellipse(x, y - 8 * s, 10 * s, 8 * s, 0, 0, Math.PI * 2);
+  ctx.fillStyle = '#0a0a0a';
   ctx.fill();
   ctx.strokeStyle = '#333';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // XX Eyes (red X marks) - like bow-tie shapes
+  ctx.strokeStyle = accentColor;
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round';
+  // Left X
+  ctx.beginPath();
+  ctx.moveTo(x - 7 * s, y - 11 * s);
+  ctx.lineTo(x - 2 * s, y - 6 * s);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x - 2 * s, y - 11 * s);
+  ctx.lineTo(x - 7 * s, y - 6 * s);
+  ctx.stroke();
+  // Right X
+  ctx.beginPath();
+  ctx.moveTo(x + 2 * s, y - 11 * s);
+  ctx.lineTo(x + 7 * s, y - 6 * s);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x + 7 * s, y - 11 * s);
+  ctx.lineTo(x + 2 * s, y - 6 * s);
+  ctx.stroke();
+  ctx.lineCap = 'butt';
+
+  // Collar ring (gray)
+  ctx.beginPath();
+  ctx.ellipse(x, y - 2 * s, 14 * s, 4 * s, 0, 0, Math.PI * 2);
+  ctx.fillStyle = frozen ? '#90d8e8' : '#999';
+  ctx.fill();
+  ctx.strokeStyle = outlineColor;
   ctx.lineWidth = 1;
   ctx.stroke();
 
-  ctx.strokeStyle = accentColor;
+  // Center antenna with red orb (below body)
+  ctx.beginPath();
+  ctx.moveTo(x, y + 14 * s);
+  ctx.lineTo(x, y + 24 * s);
+  ctx.strokeStyle = outlineColor;
   ctx.lineWidth = 2.5;
-  ctx.beginPath();
-  ctx.moveTo(x - 6 * s, y - 12 * s);
-  ctx.lineTo(x - 2 * s, y - 8 * s);
-  ctx.moveTo(x - 2 * s, y - 12 * s);
-  ctx.lineTo(x - 6 * s, y - 8 * s);
   ctx.stroke();
+  // Red orb
   ctx.beginPath();
-  ctx.moveTo(x + 2 * s, y - 12 * s);
-  ctx.lineTo(x + 6 * s, y - 8 * s);
-  ctx.moveTo(x + 6 * s, y - 12 * s);
-  ctx.lineTo(x + 2 * s, y - 8 * s);
-  ctx.stroke();
-
-  ctx.strokeStyle = '#555';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(x - 16 * s, y - 2 * s);
-  ctx.lineTo(x - 22 * s, y - 10 * s);
-  ctx.lineTo(x - 20 * s, y - 14 * s);
-  ctx.stroke();
-  ctx.fillStyle = '#888';
-  ctx.fill();
-  ctx.beginPath();
-  ctx.moveTo(x + 16 * s, y - 2 * s);
-  ctx.lineTo(x + 22 * s, y - 10 * s);
-  ctx.lineTo(x + 20 * s, y - 14 * s);
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.moveTo(x, y + 10 * s);
-  ctx.lineTo(x, y + 20 * s);
-  ctx.strokeStyle = '#666';
-  ctx.lineWidth = 2;
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(x, y + 22 * s, 4 * s, 0, Math.PI * 2);
+  ctx.arc(x, y + 26 * s, 5 * s, 0, Math.PI * 2);
   ctx.fillStyle = accentColor;
   ctx.fill();
+  ctx.strokeStyle = frozen ? '#5ab8c8' : '#a02020';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  // Orb glow
   ctx.beginPath();
-  ctx.arc(x, y + 22 * s, 6 * s, 0, Math.PI * 2);
-  ctx.fillStyle = frozen ? 'rgba(64,216,240,0.3)' : 'rgba(224,48,48,0.3)';
+  ctx.arc(x, y + 26 * s, 7 * s, 0, Math.PI * 2);
+  ctx.fillStyle = frozen ? 'rgba(64,216,240,0.2)' : 'rgba(224,48,48,0.25)';
+  ctx.fill();
+  // Orb shine
+  ctx.beginPath();
+  ctx.arc(x - 2 * s, y + 24 * s, 1.5 * s, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
   ctx.fill();
 }
 
 function drawProtectorChar(ctx: CanvasRenderingContext2D, x: number, y: number, s: number, frozen: boolean) {
   const bodyColor = frozen ? FROZEN_COLOR : '#e8e8e8';
   const accentColor = frozen ? '#80e8f8' : '#3dba6f';
+  const outlineColor = frozen ? '#6ac8d8' : '#888';
 
+  // Body - egg/oval (white)
   ctx.beginPath();
-  ctx.ellipse(x, y + 2 * s, 16 * s, 20 * s, 0, 0, Math.PI * 2);
+  ctx.ellipse(x, y + 4 * s, 15 * s, 18 * s, 0, 0, Math.PI * 2);
   ctx.fillStyle = bodyColor;
   ctx.fill();
-  ctx.strokeStyle = '#aaa';
+  ctx.strokeStyle = outlineColor;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Helmet dome (white, slightly taller)
+  ctx.beginPath();
+  ctx.arc(x, y - 11 * s, 14 * s, Math.PI, 0);
+  ctx.fillStyle = bodyColor;
+  ctx.fill();
+  ctx.strokeStyle = outlineColor;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Visor (dark with green tint)
+  ctx.beginPath();
+  ctx.ellipse(x, y - 8 * s, 10 * s, 8 * s, 0, 0, Math.PI * 2);
+  ctx.fillStyle = frozen ? '#1a3a3a' : '#0a2a1a';
+  ctx.fill();
+  ctx.strokeStyle = frozen ? '#4ac8a8' : '#2a5a3a';
   ctx.lineWidth = 1.5;
   ctx.stroke();
 
+  // Diamond eyes (green, filled)
+  ctx.fillStyle = accentColor;
+  // Left diamond
   ctx.beginPath();
-  ctx.arc(x, y - 12 * s, 14 * s, Math.PI, 0);
-  ctx.fillStyle = bodyColor;
+  ctx.moveTo(x - 5 * s, y - 8 * s);
+  ctx.lineTo(x - 3 * s, y - 12 * s);
+  ctx.lineTo(x - 1 * s, y - 8 * s);
+  ctx.lineTo(x - 3 * s, y - 5 * s);
+  ctx.closePath();
   ctx.fill();
-  ctx.strokeStyle = '#aaa';
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
+  // Right diamond
+  ctx.beginPath();
+  ctx.moveTo(x + 1 * s, y - 8 * s);
+  ctx.lineTo(x + 3 * s, y - 12 * s);
+  ctx.lineTo(x + 5 * s, y - 8 * s);
+  ctx.lineTo(x + 3 * s, y - 5 * s);
+  ctx.closePath();
+  ctx.fill();
+  // Eye glow
+  ctx.beginPath();
+  ctx.ellipse(x, y - 8 * s, 8 * s, 5 * s, 0, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(61,186,111,0.12)';
+  ctx.fill();
 
+  // Collar ring
   ctx.beginPath();
-  ctx.ellipse(x, y - 10 * s, 10 * s, 7 * s, 0, 0, Math.PI * 2);
-  ctx.fillStyle = '#0a2a1a';
+  ctx.ellipse(x, y - 2 * s, 13 * s, 4 * s, 0, 0, Math.PI * 2);
+  ctx.fillStyle = frozen ? '#b0e8f0' : '#d0d0d0';
   ctx.fill();
-  ctx.strokeStyle = '#555';
+  ctx.strokeStyle = outlineColor;
   ctx.lineWidth = 1;
   ctx.stroke();
 
+  // Solar panel device (right side)
+  ctx.fillStyle = frozen ? '#5ab8c8' : '#444';
+  ctx.fillRect(x + 14 * s, y - 8 * s, 7 * s, 14 * s);
+  ctx.strokeStyle = outlineColor;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x + 14 * s, y - 8 * s, 7 * s, 14 * s);
+  // Panel cells (green bars)
   ctx.fillStyle = accentColor;
-  ctx.beginPath();
-  ctx.moveTo(x - 5 * s, y - 10 * s);
-  ctx.lineTo(x - 3 * s, y - 13 * s);
-  ctx.lineTo(x - 1 * s, y - 10 * s);
-  ctx.lineTo(x - 3 * s, y - 7 * s);
-  ctx.closePath();
-  ctx.fill();
-  ctx.beginPath();
-  ctx.moveTo(x + 1 * s, y - 10 * s);
-  ctx.lineTo(x + 3 * s, y - 13 * s);
-  ctx.lineTo(x + 5 * s, y - 10 * s);
-  ctx.lineTo(x + 3 * s, y - 7 * s);
-  ctx.closePath();
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(x, y - 10 * s, 8 * s, 5 * s, 0, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(61,186,111,0.15)';
-  ctx.fill();
+  ctx.fillRect(x + 15.5 * s, y - 6 * s, 4 * s, 3 * s);
+  ctx.fillRect(x + 15.5 * s, y - 1.5 * s, 4 * s, 3 * s);
+  ctx.fillRect(x + 15.5 * s, y + 3 * s, 4 * s, 2 * s);
 
-  ctx.fillStyle = '#555';
-  ctx.fillRect(x + 14 * s, y - 6 * s, 6 * s, 10 * s);
-  ctx.fillStyle = accentColor;
-  ctx.fillRect(x + 15 * s, y - 4 * s, 4 * s, 3 * s);
-  ctx.fillRect(x + 15 * s, y + 1 * s, 4 * s, 2 * s);
-
+  // Right arm antenna with green orb
   ctx.beginPath();
-  ctx.moveTo(x + 6 * s, y + 10 * s);
-  ctx.lineTo(x + 10 * s, y + 20 * s);
-  ctx.strokeStyle = '#888';
-  ctx.lineWidth = 2;
+  ctx.moveTo(x + 8 * s, y + 10 * s);
+  ctx.lineTo(x + 14 * s, y + 20 * s);
+  ctx.strokeStyle = outlineColor;
+  ctx.lineWidth = 2.5;
   ctx.stroke();
+  // Green orb
   ctx.beginPath();
-  ctx.arc(x + 10 * s, y + 22 * s, 4 * s, 0, Math.PI * 2);
+  ctx.arc(x + 14 * s, y + 22 * s, 5 * s, 0, Math.PI * 2);
   ctx.fillStyle = accentColor;
   ctx.fill();
+  ctx.strokeStyle = frozen ? '#5ab8c8' : '#2a8a4f';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  // Orb glow
   ctx.beginPath();
-  ctx.arc(x + 10 * s, y + 22 * s, 6 * s, 0, Math.PI * 2);
-  ctx.fillStyle = frozen ? 'rgba(64,216,240,0.3)' : 'rgba(61,186,111,0.3)';
+  ctx.arc(x + 14 * s, y + 22 * s, 7 * s, 0, Math.PI * 2);
+  ctx.fillStyle = frozen ? 'rgba(64,216,240,0.2)' : 'rgba(61,186,111,0.25)';
+  ctx.fill();
+  // Orb shine
+  ctx.beginPath();
+  ctx.arc(x + 12 * s, y + 20 * s, 1.5 * s, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.6)';
   ctx.fill();
 }
 
