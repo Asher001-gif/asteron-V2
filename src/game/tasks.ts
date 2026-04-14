@@ -1,39 +1,34 @@
 import { TaskChallenge, TaskStation, TaskType, TOTAL_TASKS } from './types';
 
-const EMAIL_TOPICS = [
-  'Request supplies from Earth',
-  'Report oxygen levels',
-  'Schedule rover maintenance',
-  'Update crew on weather',
-  'Request medical supplies',
-  'Report mineral findings',
-  'Alert about dust storm',
-  'Confirm food inventory',
-  'Request fuel delivery',
-  'Report solar panel status',
-];
-
 const TASK_LABELS: Record<TaskType, string> = {
-  math: 'Calculate',
-  temperature: 'Adj. Temp',
-  email: 'Send Email',
-  scan: 'Scan Data',
+  frequency: '📻 Frequency',
+  morse: '📟 Morse Code',
+  satellite: '📡 Satellite',
+  backup: '📁 Backup',
+  solar: '🧼 Solar Panel',
+  power: '🔋 Power',
+  magnetic: '🧩 Magnetic',
+  password: '🔑 Password',
+  ice: '🧊 Ice Shatter',
+  dna: '🧬 DNA Slider',
 };
 
 export function createTaskStations(): TaskStation[] {
   const positions = [
-    // Research room (top center, inside 550-1050, 40-340)
+    // Research room
     { x: 680, y: 150 }, { x: 850, y: 200 }, { x: 950, y: 120 },
-    // Ecosystem room (left, inside 40-390, 450-800)
+    // Ecosystem room
     { x: 150, y: 550 }, { x: 280, y: 680 }, { x: 150, y: 730 },
-    // Recover room (right, inside 1210-1560, 450-800)
+    // Recover room
     { x: 1320, y: 550 }, { x: 1450, y: 680 },
     // Open area
     { x: 800, y: 900 }, { x: 500, y: 1050 },
   ];
 
-  const types: TaskType[] = ['math', 'math', 'temperature', 'temperature',
-    'email', 'email', 'scan', 'scan', 'math', 'temperature'];
+  const types: TaskType[] = [
+    'frequency', 'morse', 'satellite', 'backup', 'solar',
+    'power', 'magnetic', 'password', 'ice', 'dna',
+  ];
 
   return positions.slice(0, TOTAL_TASKS).map((pos, i) => ({
     id: i,
@@ -47,27 +42,48 @@ export function createTaskStations(): TaskStation[] {
 
 export function generateTaskChallenge(station: TaskStation): TaskChallenge {
   switch (station.taskType) {
-    case 'math': {
-      const a = Math.floor(Math.random() * 20) + 1;
-      const b = Math.floor(Math.random() * 15) + 1;
-      const c = Math.floor(Math.random() * 10) + 1;
-      const ops = ['+', '-'];
-      const op1 = ops[Math.floor(Math.random() * 2)];
-      const op2 = ops[Math.floor(Math.random() * 2)];
-      const expr = `${a} ${op1} ${b} ${op2} ${c}`;
-      const result = eval(expr) as number;
-      return { type: 'math', stationId: station.id, prompt: `Solve: ${expr}`, answer: String(result) };
+    case 'frequency': {
+      const targetAngle = Math.floor(Math.random() * 300) + 30;
+      return { type: 'frequency', stationId: station.id, prompt: 'Tune the frequency', answer: '', targetAngle };
     }
-    case 'temperature': {
-      const target = Math.floor(Math.random() * 30) + 15;
-      return { type: 'temperature', stationId: station.id, prompt: `Set temperature to ${target}°C`, answer: '', targetTemp: target };
+    case 'morse': {
+      const patterns: ('short' | 'long')[][] = [
+        ['short', 'short', 'long'],
+        ['long', 'short', 'short'],
+        ['short', 'long', 'short'],
+        ['long', 'long', 'short'],
+        ['short', 'long', 'long'],
+      ];
+      const morsePattern = patterns[Math.floor(Math.random() * patterns.length)];
+      return { type: 'morse', stationId: station.id, prompt: 'Repeat the pattern', answer: '', morsePattern };
     }
-    case 'email': {
-      const topic = EMAIL_TOPICS[Math.floor(Math.random() * EMAIL_TOPICS.length)];
-      return { type: 'email', stationId: station.id, prompt: `Write a 1-line email about:`, answer: '', topic };
+    case 'satellite': {
+      const targetRotation = Math.floor(Math.random() * 300) + 30;
+      return { type: 'satellite', stationId: station.id, prompt: 'Align the dish', answer: '', targetRotation };
     }
-    case 'scan': {
-      return { type: 'scan', stationId: station.id, prompt: 'Scanning data...', answer: '', duration: 4500 };
+    case 'backup': {
+      return { type: 'backup', stationId: station.id, prompt: 'Backing up data...', answer: '', duration: 5000 };
+    }
+    case 'solar': {
+      return { type: 'solar', stationId: station.id, prompt: 'Swipe to clean!', answer: '' };
+    }
+    case 'power': {
+      return { type: 'power', stationId: station.id, prompt: 'Flick batteries up!', answer: '' };
+    }
+    case 'magnetic': {
+      return { type: 'magnetic', stationId: station.id, prompt: 'Snap the pieces!', answer: '' };
+    }
+    case 'password': {
+      const digits = String(Math.floor(1000 + Math.random() * 9000));
+      return { type: 'password', stationId: station.id, prompt: 'Remember the code', answer: digits, passwordDigits: digits };
+    }
+    case 'ice': {
+      const tapsRequired = 15 + Math.floor(Math.random() * 10);
+      return { type: 'ice', stationId: station.id, prompt: 'Tap to shatter!', answer: '', tapsRequired };
+    }
+    case 'dna': {
+      const dnaOffset = Math.floor(Math.random() * 5) + 2;
+      return { type: 'dna', stationId: station.id, prompt: 'Align the strands', answer: '', dnaOffset };
     }
   }
 }
