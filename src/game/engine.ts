@@ -197,32 +197,19 @@ function aiProtectorBehavior(player: Player, visible: Player[], allPlayers: Play
 }
 
 function patrolAI(player: Player, otherProtector: Player | undefined, now: number) {
-  if (now > player.aiChangeTime) {
-    // Pick a patrol point, prefer points far from the other protector
+  if (now > player.aiChangeTime || dist(player, { x: player.aiTargetX, y: player.aiTargetY }) < 30) {
     let bestPoint = PATROL_POINTS[Math.floor(Math.random() * PATROL_POINTS.length)];
     
     if (otherProtector) {
-      // Sort patrol points by distance from other protector (prefer far ones)
       const sorted = [...PATROL_POINTS].sort((a, b) => {
-        const dA = dist(otherProtector, a);
-        const dB = dist(otherProtector, b);
-        return dB - dA; // farther from other protector = better
+        return dist(otherProtector, b) - dist(otherProtector, a);
       });
-      // Pick from top 3 farthest points randomly
       bestPoint = sorted[Math.floor(Math.random() * Math.min(3, sorted.length))];
     }
 
     player.aiTargetX = bestPoint.x + (Math.random() - 0.5) * 100;
     player.aiTargetY = bestPoint.y + (Math.random() - 0.5) * 100;
     player.aiChangeTime = now + 3000 + Math.random() * 2000;
-  }
-
-  const d = dist(player, { x: player.aiTargetX, y: player.aiTargetY });
-  if (d < 30) {
-    // Reached waypoint, pick next one soon
-    player.aiChangeTime = now + 500;
-    player.direction = { x: 0, y: 0 };
-    return;
   }
 
   player.direction = getNavigationDirection(player.x, player.y, player.aiTargetX, player.aiTargetY);
