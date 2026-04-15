@@ -54,7 +54,7 @@ export function createGame(playerRole: Role): GameState {
     frozenUntil: 0,
     name: NAMES[i],
     isHuman: i === 0,
-    speed: role === 'imposter' ? 2.4 : 2.2,
+    speed: role === 'imposter' ? 3.6 : 3.3,
     direction: { x: 0, y: 0 },
     aiTargetX: MAP_WIDTH / 2,
     aiTargetY: MAP_HEIGHT / 2,
@@ -101,8 +101,14 @@ function updateAI(player: Player, allPlayers: Player[], state: GameState, now: n
   }
 }
 
+// Room centers for imposter room-searching behavior
+const ROOM_CENTERS = [
+  { x: 800, y: 190 },   // Research center
+  { x: 215, y: 625 },   // Ecosystem center
+  { x: 1385, y: 625 },  // Recover center
+];
+
 function aiImposterBehavior(player: Player, visible: Player[], now: number) {
-  // Only react to visible players
   const visibleCrew = visible.filter(p => p.role === 'crewmate');
   const visibleProtectors = visible.filter(p => p.role === 'protector');
 
@@ -116,76 +122,94 @@ function aiImposterBehavior(player: Player, visible: Player[], now: number) {
     return;
   }
 
-  // Hunt visible crewmates
+  // Hunt visible crewmates - follow and destroy
   if (visibleCrew.length > 0) {
     const nearest = visibleCrew.reduce((a, b) => dist(player, a) < dist(player, b) ? a : b);
     player.direction = getNavigationDirection(player.x, player.y, nearest.x, nearest.y);
     return;
   }
 
-  // No targets visible - explore
-  wanderAI(player, now);
+  // No crew visible - search rooms sequentially
+  // Use aiChangeTime to track which room to search, cycle through rooms
+  if (now > player.aiChangeTime || dist(player, { x: player.aiTargetX, y: player.aiTargetY }) < 40) {
+    // Pick nearest unvisited room, or cycle
+    const currentRoom = getRoomAt(player.x, player.y);
+    let bestRoom = ROOM_CENTERS[0];
+    let bestDist = Infinity;
+    for (const rc of ROOM_CENTERS) {
+      const d = dist(player, rc);
+      // Prefer rooms we're not already in
+      const roomIdx = ROOM_CENTERS.indexOf(rc);
+      if (roomIdx === currentRoom) continue;
+      if (d < bestDist) {
+        bestDist = d;
+        bestRoom = rc;
+      }
+    }
+    player.aiTargetX = bestRoom.x + (Math.random() - 0.5) * 60;
+    player.aiTargetY = bestRoom.y + (Math.random() - 0.5) * 60;
+    player.aiChangeTime = now + 4000 + Math.random() * 2000;
+  }
+
+  player.direction = getNavigationDirection(player.x, player.y, player.aiTargetX, player.aiTargetY);
 }
 
 function aiProtectorBehavior(player: Player, visible: Player[], allPlayers: Player[], now: number) {
   const visibleCrew = visible.filter(p => p.role === 'crewmate');
   const visibleImposters = visible.filter(p => p.role === 'imposter');
-
-  // Find the other protector to coordinate
   const otherProtector = allPlayers.find(p => p.id !== player.id && p.role === 'protector' && p.alive);
 
-  // Check if any visible crew is in danger (imposter within 200px of them)
+  // PRIORITY 1: Save endangered crew - if imposter near a visible crewmate
   const endangeredCrew = visibleCrew.filter(c =>
-    visibleImposters.some(imp => dist(imp, c) < 200)
+    visibleImposters.some(imp => dist(imp, c) < 250)
   );
 
   if (endangeredCrew.length > 0) {
-    // Find the threatening imposter closest to endangered crew
-    const threatImposter = visibleImposters
-      .filter(imp => endangeredCrew.some(c => dist(imp, c) < 200))
-      .reduce((a, b) => {
-        const aD = Math.min(...endangeredCrew.map(c => dist(a, c)));
-        const bD = Math.min(...endangeredCrew.map(c => dist(b, c)));
-        return aD < bD ? a : b;
-      });
+    // If other protector exists, each saves different crew
+    let targetCrew = endangeredCrew[0];
+    if (otherProtector && endangeredCrew.length > 1) {
+      const otherDist0 = dist(otherProtector, endangeredCrew[0]);
+      const otherDist1 = dist(otherProtector, endangeredCrew[1]);
+      // Pick the one farther from other protector
+      targetCrew = otherDist0 < otherDist1 ? endangeredCrew[1] : endangeredCrew[0];
+    }
 
-    // Rush to help - move toward the threatening imposter
+    // Move toward the threatening imposter near that crew
+    const threatImposter = visibleImposters
+      .filter(imp => dist(imp, targetCrew) < 250)
+      .reduce((a, b) => dist(a, targetCrew) < dist(b, targetCrew) ? a : b);
+
     player.direction = getNavigationDirection(player.x, player.y, threatImposter.x, threatImposter.y);
     return;
   }
 
-  // No immediate danger - patrol the map
-  // Each protector patrols different waypoints based on their ID
+  // PRIORITY 2: If a lone crewmate is visible, move toward them briefly to escort
+  if (visibleCrew.length === 1) {
+    const loneCrew = visibleCrew[0];
+    if (dist(player, loneCrew) > 80) {
+      player.direction = getNavigationDirection(player.x, player.y, loneCrew.x, loneCrew.y);
+      return;
+    }
+  }
+
+  // PRIORITY 3: Patrol - always keep moving
   patrolAI(player, otherProtector, now);
 }
 
 function patrolAI(player: Player, otherProtector: Player | undefined, now: number) {
-  if (now > player.aiChangeTime) {
-    // Pick a patrol point, prefer points far from the other protector
+  if (now > player.aiChangeTime || dist(player, { x: player.aiTargetX, y: player.aiTargetY }) < 30) {
     let bestPoint = PATROL_POINTS[Math.floor(Math.random() * PATROL_POINTS.length)];
     
     if (otherProtector) {
-      // Sort patrol points by distance from other protector (prefer far ones)
       const sorted = [...PATROL_POINTS].sort((a, b) => {
-        const dA = dist(otherProtector, a);
-        const dB = dist(otherProtector, b);
-        return dB - dA; // farther from other protector = better
+        return dist(otherProtector, b) - dist(otherProtector, a);
       });
-      // Pick from top 3 farthest points randomly
       bestPoint = sorted[Math.floor(Math.random() * Math.min(3, sorted.length))];
     }
 
     player.aiTargetX = bestPoint.x + (Math.random() - 0.5) * 100;
     player.aiTargetY = bestPoint.y + (Math.random() - 0.5) * 100;
     player.aiChangeTime = now + 3000 + Math.random() * 2000;
-  }
-
-  const d = dist(player, { x: player.aiTargetX, y: player.aiTargetY });
-  if (d < 30) {
-    // Reached waypoint, pick next one soon
-    player.aiChangeTime = now + 500;
-    player.direction = { x: 0, y: 0 };
-    return;
   }
 
   player.direction = getNavigationDirection(player.x, player.y, player.aiTargetX, player.aiTargetY);
@@ -232,17 +256,11 @@ function aiCrewmateBehavior(player: Player, visible: Player[], state: GameState,
 }
 
 function wanderAI(player: Player, now: number) {
-  if (now > player.aiChangeTime) {
+  if (now > player.aiChangeTime || dist(player, { x: player.aiTargetX, y: player.aiTargetY }) < 30) {
+    // Always pick a new target immediately - never idle
     player.aiTargetX = 100 + Math.random() * (MAP_WIDTH - 200);
     player.aiTargetY = 100 + Math.random() * (MAP_HEIGHT - 200);
     player.aiChangeTime = now + 2000 + Math.random() * 3000;
-  }
-
-  const d = dist(player, { x: player.aiTargetX, y: player.aiTargetY });
-  if (d < 30) {
-    player.aiChangeTime = now + 500;
-    player.direction = { x: 0, y: 0 };
-    return;
   }
 
   player.direction = getNavigationDirection(player.x, player.y, player.aiTargetX, player.aiTargetY);

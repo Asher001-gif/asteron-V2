@@ -1,13 +1,19 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
-import { GameState } from '@/game/types';
+import { GameState, TASK_RANGE, KILL_RANGE, FREEZE_RANGE } from '@/game/types';
 import { updateGame, humanKill, humanFreeze, getNearbyTask } from '@/game/engine';
 import { generateTaskChallenge } from '@/game/tasks';
 import { renderGame } from '@/game/renderer';
 import TaskOverlay from './TaskOverlay';
+import MobileControls from './MobileControls';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface Props {
   gameState: GameState;
   setGameState: (s: GameState) => void;
+}
+
+function dist(a: { x: number; y: number }, b: { x: number; y: number }) {
+  return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
 }
 
 export default function GameCanvas({ gameState, setGameState }: Props) {
@@ -15,8 +21,10 @@ export default function GameCanvas({ gameState, setGameState }: Props) {
   const keysRef = useRef(new Set<string>());
   const stateRef = useRef(gameState);
   const animRef = useRef(0);
+  const mobileDir = useRef({ x: 0, y: 0 });
   const [size, setSize] = useState({ w: 800, h: 600 });
   const [showTask, setShowTask] = useState(false);
+  const isMobile = useIsMobile();
 
   stateRef.current = gameState;
 
@@ -30,7 +38,6 @@ export default function GameCanvas({ gameState, setGameState }: Props) {
   }, []);
 
   const handleKey = useCallback((e: KeyboardEvent, down: boolean) => {
-    // Don't handle game keys when task overlay is open
     if (showTask) return;
 
     const key = e.key.toLowerCase();
@@ -79,6 +86,12 @@ export default function GameCanvas({ gameState, setGameState }: Props) {
       const dt = Math.min(time - lastTime, 50);
       lastTime = time;
 
+      // Apply mobile joystick direction
+      const human = stateRef.current.players[0];
+      if (isMobile && human.alive && !human.frozen && !human.doingTask) {
+        human.direction = { ...mobileDir.current };
+      }
+
       if (stateRef.current.phase === 'playing') {
         const newState = updateGame(stateRef.current, dt, keysRef.current, time);
         stateRef.current = newState;
@@ -96,7 +109,7 @@ export default function GameCanvas({ gameState, setGameState }: Props) {
 
     animRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animRef.current);
-  }, [size, setGameState]);
+  }, [size, setGameState, isMobile]);
 
   const handleTaskComplete = useCallback(() => {
     const s = stateRef.current;
@@ -123,6 +136,50 @@ export default function GameCanvas({ gameState, setGameState }: Props) {
     setGameState({ ...s });
   }, [setGameState]);
 
+  const handleMobileMove = useCallback((dx: number, dy: number) => {
+    mobileDir.current = { x: dx, y: dy };
+  }, []);
+
+  const handleMobileAction = useCallback(() => {
+    const s = stateRef.current;
+    const now = performance.now();
+    if (s.players[0].role === 'imposter') {
+      humanKill(s, now);
+    } else if (s.players[0].role === 'protector') {
+      humanFreeze(s, now);
+    } else if (s.players[0].role === 'crewmate') {
+      const taskId = getNearbyTask(s);
+      if (taskId !== null) {
+        const station = s.taskStations.find(t => t.id === taskId);
+        if (station) {
+          const challenge = generateTaskChallenge(station);
+          s.activeTask = challenge;
+          s.players[0].doingTask = true;
+          s.players[0].taskStationId = taskId;
+          setShowTask(true);
+          setGameState({ ...s });
+        }
+      }
+    }
+  }, [setGameState]);
+
+  // Determine action button state for mobile
+  const human = gameState.players[0];
+  let actionLabel = '';
+  let canAction = false;
+  if (human.role === 'imposter') {
+    actionLabel = 'KILL';
+    canAction = human.alive && !human.frozen && human.killCooldown <= 0 &&
+      gameState.players.some(p => p.alive && p.id !== 0 && p.role === 'crewmate' && dist(human, p) < KILL_RANGE);
+  } else if (human.role === 'protector') {
+    actionLabel = 'FREEZE';
+    canAction = human.alive && !human.frozen && human.freezeCooldown <= 0 &&
+      gameState.players.some(p => p.alive && p.role === 'imposter' && !p.frozen && dist(human, p) < FREEZE_RANGE);
+  } else {
+    actionLabel = 'TASK';
+    canAction = getNearbyTask(gameState) !== null;
+  }
+
   return (
     <>
       <canvas
@@ -137,6 +194,15 @@ export default function GameCanvas({ gameState, setGameState }: Props) {
           task={gameState.activeTask}
           onComplete={handleTaskComplete}
           onCancel={handleTaskCancel}
+        />
+      )}
+      {isMobile && !showTask && gameState.phase === 'playing' && (
+        <MobileControls
+          role={human.role}
+          canAction={canAction}
+          actionLabel={actionLabel}
+          onMove={handleMobileMove}
+          onAction={handleMobileAction}
         />
       )}
     </>

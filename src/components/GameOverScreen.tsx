@@ -13,12 +13,12 @@ export default function GameOverScreen({ state, onRestart }: Props) {
       <div className="text-center space-y-6 p-8 rounded-xl border border-border bg-card shadow-2xl max-w-md">
         <h1 className="text-4xl font-bold font-mono tracking-wider"
           style={{ color: isCrewWin ? '#3dba6f' : '#e03030' }}>
-          {isCrewWin ? '🛡️ CREW WINS!' : '☠️ IMPOSTERS WIN!'}
+          {isCrewWin ? '🛡️ CREW WINS!' : '☠️ TRAITORS WIN!'}
         </h1>
         <p className="text-muted-foreground font-mono">
           {isCrewWin
             ? 'All tasks completed! Mars base is operational!'
-            : 'The imposters eliminated all crewmates...'}
+            : 'The traitors eliminated all crewmates...'}
         </p>
         <div className="text-sm text-muted-foreground font-mono">
           Time: {Math.floor(state.timeElapsed / 1000)}s |
