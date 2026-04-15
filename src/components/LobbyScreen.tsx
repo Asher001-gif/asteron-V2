@@ -5,9 +5,9 @@ interface Props {
 }
 
 const roles: { role: Role; label: string; desc: string; color: string; icon: string }[] = [
-  { role: 'imposter', label: 'IMPOSTER', desc: 'Kill all crewmates before tasks are done', color: '#e03030', icon: '🔪' },
-  { role: 'crewmate', label: 'CREWMATE', desc: 'Complete 10 tasks to win! Press E near stations', color: '#4a90d9', icon: '🏃' },
-  { role: 'protector', label: 'PROTECTOR', desc: 'Freeze imposters to protect crew (can\'t do tasks)', color: '#3dba6f', icon: '🛡️' },
+  { role: 'imposter', label: 'TRAITOR', desc: 'Kill all crewmates before tasks are done', color: '#e03030', icon: '🔪' },
+  { role: 'crewmate', label: 'CREWMATE', desc: 'Complete 10 tasks to win! Tap or press E near stations', color: '#4a90d9', icon: '🏃' },
+  { role: 'protector', label: 'PROTECTOR', desc: 'Freeze traitors to protect crew (can\'t do tasks)', color: '#3dba6f', icon: '🛡️' },
 ];
 
 export default function LobbyScreen({ onStart }: Props) {
@@ -34,7 +34,7 @@ export default function LobbyScreen({ onStart }: Props) {
             MARS BETRAYAL
           </h1>
           <p className="text-muted-foreground font-mono text-sm">
-            10 Players • 2 Imposters • 2 Protectors • 6 Crew
+            10 Players • 2 Traitors • 2 Protectors • 6 Crew
           </p>
         </div>
 
@@ -61,7 +61,7 @@ export default function LobbyScreen({ onStart }: Props) {
         </div>
 
         <p className="text-muted-foreground font-mono text-xs">
-          WASD/Arrows to move • SPACE for action
+          WASD/Arrows to move • SPACE for action • Mobile: Virtual joystick
         </p>
       </div>
     </div>
