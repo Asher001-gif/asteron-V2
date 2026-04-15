@@ -878,8 +878,9 @@ function drawHUD(ctx: CanvasRenderingContext2D, state: GameState, w: number, h: 
   ctx.fillStyle = '#cc8860';
   ctx.font = 'bold 14px monospace';
   ctx.textAlign = 'left';
-  ctx.fillText(`Role: ${human.role.toUpperCase()}`, 15, 20);
-  ctx.fillText(`Crew: ${aliveCrew} | Imposters: ${aliveImposters}`, 15, 40);
+  const roleDisplay = human.role === 'imposter' ? 'TRAITOR' : human.role.toUpperCase();
+  ctx.fillText(`Role: ${roleDisplay}`, 15, 20);
+  ctx.fillText(`Crew: ${aliveCrew} | Traitors: ${aliveImposters}`, 15, 40);
 
   const barW = 200;
   const barH = 14;
@@ -923,7 +924,7 @@ function drawHUD(ctx: CanvasRenderingContext2D, state: GameState, w: number, h: 
       ctx.fillText(ready ? '[SPACE] FREEZE' : `Freeze: ${Math.ceil(human.freezeCooldown / 1000)}s`, w / 2, 48);
     } else {
       ctx.fillStyle = '#888';
-      ctx.fillText('[E] Do Tasks | Avoid Imposters!', w / 2, 48);
+      ctx.fillText('[E] Do Tasks | Avoid Traitors!', w / 2, 48);
     }
   }
 
