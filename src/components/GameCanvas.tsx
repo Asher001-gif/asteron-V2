@@ -5,7 +5,8 @@ import { generateTaskChallenge } from '@/game/tasks';
 import { renderGame } from '@/game/renderer';
 import TaskOverlay from './TaskOverlay';
 import MobileControls from './MobileControls';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { useIsMobileDevice, useIsPortrait } from '@/hooks/use-device';
+import RotateDevicePrompt from './RotateDevicePrompt';
 
 interface Props {
   gameState: GameState;
@@ -24,7 +25,9 @@ export default function GameCanvas({ gameState, setGameState }: Props) {
   const mobileDir = useRef({ x: 0, y: 0 });
   const [size, setSize] = useState({ w: 800, h: 600 });
   const [showTask, setShowTask] = useState(false);
-  const isMobile = useIsMobile();
+  const isMobile = useIsMobileDevice();
+  const isPortrait = useIsPortrait();
+  const needsRotate = isMobile && isPortrait;
 
   stateRef.current = gameState;
 
@@ -38,6 +41,8 @@ export default function GameCanvas({ gameState, setGameState }: Props) {
   }, []);
 
   const handleKey = useCallback((e: KeyboardEvent, down: boolean) => {
+    // Desktop-only: ignore all keyboard input on mobile devices.
+    if (isMobile) return;
     if (showTask) return;
 
     const key = e.key.toLowerCase();
@@ -69,15 +74,17 @@ export default function GameCanvas({ gameState, setGameState }: Props) {
     } else {
       keysRef.current.delete(key);
     }
-  }, [showTask, setGameState]);
+  }, [showTask, setGameState, isMobile]);
 
   useEffect(() => {
+    // Only register keyboard listeners on desktop.
+    if (isMobile) return;
     const kd = (e: KeyboardEvent) => handleKey(e, true);
     const ku = (e: KeyboardEvent) => handleKey(e, false);
     window.addEventListener('keydown', kd);
     window.addEventListener('keyup', ku);
     return () => { window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku); };
-  }, [handleKey]);
+  }, [handleKey, isMobile]);
 
   useEffect(() => {
     let lastTime = performance.now();
@@ -187,7 +194,14 @@ export default function GameCanvas({ gameState, setGameState }: Props) {
         width={size.w}
         height={size.h}
         className="block"
-        style={{ cursor: 'none' }}
+        style={{ cursor: isMobile ? 'none' : 'default' }}
+        onClick={() => {
+          if (isMobile) return;
+          const s = stateRef.current;
+          const now = performance.now();
+          if (s.players[0].role === 'imposter') humanKill(s, now);
+          else if (s.players[0].role === 'protector') humanFreeze(s, now);
+        }}
       />
       {showTask && gameState.activeTask && (
         <TaskOverlay
@@ -205,6 +219,7 @@ export default function GameCanvas({ gameState, setGameState }: Props) {
           onAction={handleMobileAction}
         />
       )}
+      {needsRotate && <RotateDevicePrompt />}
     </>
   );
 }
