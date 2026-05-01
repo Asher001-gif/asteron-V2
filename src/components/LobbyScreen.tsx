@@ -63,6 +63,18 @@ export default function LobbyScreen({ onStart }: Props) {
         <p className="text-muted-foreground font-mono text-xs">
           WASD/Arrows to move • SPACE for action • Mobile: Virtual joystick
         </p>
+
+        <div className="space-y-2 pt-2">
+          <p className="text-foreground font-mono text-sm">Have a suggestion for our game?</p>
+          <a
+            href="https://forms.gle/CLdBLKCmYo3h9EQX7"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block px-5 py-2 rounded-lg border-2 border-primary text-primary font-mono font-bold hover:bg-primary/10 transition-colors"
+          >
+            Suggestion
+          </a>
+        </div>
       </div>
     </div>
   );
