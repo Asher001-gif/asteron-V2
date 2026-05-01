@@ -12,7 +12,7 @@ const roles: { role: Role; label: string; desc: string; color: string; icon: str
 
 export default function LobbyScreen({ onStart }: Props) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background overflow-y-auto">
       <div className="absolute inset-0 overflow-hidden">
         {[...Array(50)].map((_, i) => (
           <div
@@ -28,7 +28,7 @@ export default function LobbyScreen({ onStart }: Props) {
           />
         ))}
       </div>
-      <div className="relative text-center space-y-8 p-8 max-w-lg">
+      <div className="relative text-center space-y-8 p-8 max-w-lg my-auto">
         <div>
           <h1 className="text-5xl font-bold font-mono tracking-widest text-primary mb-2">
             MARS BETRAYAL
