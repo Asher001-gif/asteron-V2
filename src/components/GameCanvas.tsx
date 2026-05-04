@@ -11,13 +11,14 @@ import RotateDevicePrompt from './RotateDevicePrompt';
 interface Props {
   gameState: GameState;
   setGameState: (s: GameState) => void;
+  onExit?: () => void;
 }
 
 function dist(a: { x: number; y: number }, b: { x: number; y: number }) {
   return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
 }
 
-export default function GameCanvas({ gameState, setGameState }: Props) {
+export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const keysRef = useRef(new Set<string>());
   const stateRef = useRef(gameState);
@@ -220,6 +221,17 @@ export default function GameCanvas({ gameState, setGameState }: Props) {
         />
       )}
       {needsRotate && <RotateDevicePrompt />}
+      <button
+        onClick={() => {
+          if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+          onExit?.();
+        }}
+        className="fixed top-3 left-3 z-[90] px-3 py-1.5 rounded-md bg-background/80 border border-border text-foreground font-mono text-sm hover:bg-background"
+        style={{ backdropFilter: 'blur(4px)' }}
+        aria-label="Exit to home"
+      >
+        ⬅ Exit
+      </button>
     </>
   );
 }
