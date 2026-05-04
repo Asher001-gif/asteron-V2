@@ -30,14 +30,11 @@ export function useIsMobileDevice() {
 
 function detect(): boolean {
   if (typeof window === "undefined") return false;
-  const coarse = window.matchMedia("(pointer: coarse)").matches;
-  const hasFine = window.matchMedia("(any-pointer: fine)").matches;
+  // Touch-only detection (no user-agent sniffing).
   const hasTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
-  const uaMobile = /Android|iPhone|iPad|iPod|Mobile|Opera Mini|IEMobile/i.test(
-    navigator.userAgent
-  );
-  // Mobile = touch device without a fine pointer (mouse), or UA says mobile.
-  return (coarse && hasTouch && !hasFine) || uaMobile;
+  const hasFine = window.matchMedia("(any-pointer: fine)").matches;
+  // Treat as mobile if device has touch and no fine pointer (mouse).
+  return hasTouch && !hasFine;
 }
 
 /** Returns true when the viewport is in portrait orientation. */
