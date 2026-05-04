@@ -42,6 +42,32 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
     return () => window.removeEventListener('resize', resize);
   }, []);
 
+  // On mobile, request fullscreen on the first user interaction (browsers
+  // require a user gesture). Also try to lock orientation to landscape.
+  useEffect(() => {
+    if (!isMobile) return;
+    const goFullscreen = async () => {
+      try {
+        const el = document.documentElement;
+        if (!document.fullscreenElement && el.requestFullscreen) {
+          await el.requestFullscreen();
+        }
+        const orient = (screen as any).orientation;
+        if (orient && typeof orient.lock === 'function') {
+          orient.lock('landscape').catch(() => {});
+        }
+      } catch {}
+      window.removeEventListener('touchstart', goFullscreen);
+      window.removeEventListener('click', goFullscreen);
+    };
+    window.addEventListener('touchstart', goFullscreen, { once: true });
+    window.addEventListener('click', goFullscreen, { once: true });
+    return () => {
+      window.removeEventListener('touchstart', goFullscreen);
+      window.removeEventListener('click', goFullscreen);
+    };
+  }, [isMobile]);
+
   const handleKey = useCallback((e: KeyboardEvent, down: boolean) => {
     // Desktop-only: ignore all keyboard input on mobile devices.
     if (isMobile) return;
@@ -196,7 +222,7 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
         width={size.w}
         height={size.h}
         className="block"
-        style={{ cursor: isMobile ? 'none' : 'default' }}
+        style={{ cursor: isMobile ? 'none' : 'default', touchAction: 'none' }}
         onClick={() => {
           if (isMobile) return;
           const s = stateRef.current;
