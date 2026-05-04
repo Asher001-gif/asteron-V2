@@ -7,6 +7,7 @@ import TaskOverlay from './TaskOverlay';
 import MobileControls from './MobileControls';
 import { useIsMobileDevice, useIsPortrait } from '@/hooks/use-device';
 import RotateDevicePrompt from './RotateDevicePrompt';
+import DraggableExitButton from './DraggableExitButton';
 
 interface Props {
   gameState: GameState;
@@ -221,17 +222,7 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
         />
       )}
       {needsRotate && <RotateDevicePrompt />}
-      <button
-        onClick={() => {
-          if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-          onExit?.();
-        }}
-        className="fixed top-3 left-3 z-[90] px-3 py-1.5 rounded-md bg-background/80 border border-border text-foreground font-mono text-sm hover:bg-background"
-        style={{ backdropFilter: 'blur(4px)' }}
-        aria-label="Exit to home"
-      >
-        ⬅ Exit
-      </button>
+      {onExit && <DraggableExitButton onExit={onExit} />}
     </>
   );
 }
