@@ -20,7 +20,7 @@ export default function Index() {
 
   return (
     <div className="fixed inset-0 bg-background overflow-hidden">
-      <GameCanvas gameState={gameState} setGameState={setGameState} />
+      <GameCanvas gameState={gameState} setGameState={setGameState} onExit={handleRestart} />
       {gameState.phase === 'gameover' && (
         <GameOverScreen state={gameState} onRestart={handleRestart} />
       )}
