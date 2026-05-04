@@ -340,11 +340,11 @@ export function updateGame(state: GameState, dt: number, keys: Set<string>, now:
     if (keys.has('a') || keys.has('arrowleft')) dx -= 1;
     if (keys.has('d') || keys.has('arrowright')) dx += 1;
     if (dx || dy) {
+      // Keyboard input takes precedence
       const d = Math.sqrt(dx * dx + dy * dy);
       human.direction = { x: dx / d, y: dy / d };
-    } else {
-      human.direction = { x: 0, y: 0 };
     }
+    // else: preserve human.direction (set externally, e.g. mobile joystick)
   } else if (human.doingTask) {
     human.direction = { x: 0, y: 0 };
   }
