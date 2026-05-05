@@ -1,4 +1,4 @@
-import { GameState, Player, PLAYER_RADIUS, TASK_RANGE, FreezeProjectile } from './types';
+import { GameState, Player, PLAYER_RADIUS, TASK_RANGE, FreezeProjectile, JAIL_RECT, JAIL_DURATION } from './types';
 import { ROOM_WALLS, OBSTACLES, ROOMS } from './collision';
 
 const FROZEN_COLOR = '#40d8f0';
@@ -33,6 +33,7 @@ export function renderGame(
   animTime = performance.now();
 
   drawMarsSurface(ctx, state.mapWidth, state.mapHeight);
+  drawJailRoom(ctx);
   drawTaskStations(ctx, state);
 
   for (const p of state.players) {
