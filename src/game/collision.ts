@@ -1,4 +1,4 @@
-import { PLAYER_RADIUS } from './types';
+import { PLAYER_RADIUS, JAIL_RECT } from './types';
 
 export interface Wall {
   x1: number; y1: number;
