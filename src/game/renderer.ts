@@ -910,24 +910,42 @@ function drawHUD(ctx: CanvasRenderingContext2D, state: GameState, w: number, h: 
   if (!human.alive) {
     ctx.fillStyle = '#ff3333';
     ctx.fillText('☠ DEAD - Spectating', w - 15, 40);
-  } else if (human.frozen) {
-    ctx.fillStyle = FROZEN_COLOR;
-    ctx.fillText('❄ FROZEN', w - 15, 40);
+  } else if (human.jailed) {
+    const remaining = Math.max(0, Math.ceil((human.jailedUntil - performance.now()) / 1000));
+    ctx.fillStyle = '#ffaa33';
+    ctx.fillText(`⛓ JAILED ${remaining}s`, w - 15, 40);
   }
 
-  if (human.alive && !human.frozen) {
+  if (human.alive && !human.jailed) {
     ctx.textAlign = 'center';
     if (human.role === 'imposter') {
       const ready = human.killCooldown <= 0;
       ctx.fillStyle = ready ? '#ff4444' : '#664444';
       ctx.fillText(ready ? '[SPACE] KILL' : `Kill: ${Math.ceil(human.killCooldown / 1000)}s`, w / 2, 48);
     } else if (human.role === 'protector') {
-      const ready = human.freezeCooldown <= 0;
-      ctx.fillStyle = ready ? FROZEN_COLOR : '#446666';
-      ctx.fillText(ready ? '[SPACE] FREEZE' : `Freeze: ${Math.ceil(human.freezeCooldown / 1000)}s`, w / 2, 48);
+      const ready = human.arrestCooldown <= 0;
+      ctx.fillStyle = ready ? '#3dba6f' : '#446644';
+      ctx.fillText(ready ? '[SPACE] ARREST' : `Arrest: ${Math.ceil(human.arrestCooldown / 1000)}s`, w / 2, 48);
     } else {
       ctx.fillStyle = '#888';
-      ctx.fillText('[E] Do Tasks | Avoid Traitors!', w / 2, 48);
+      ctx.fillText('[SPACE/E] Do Tasks | Stay Alive!', w / 2, 48);
+    }
+  }
+
+  // Arrest notification banner (top center under HUD)
+  if (state.recentArrest) {
+    const age = performance.now() - state.recentArrest.time;
+    if (age < 3000) {
+      const alpha = age < 2500 ? 1 : 1 - (age - 2500) / 500;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = 'rgba(255,170,51,0.9)';
+      ctx.fillRect(w / 2 - 180, 60, 360, 30);
+      ctx.fillStyle = '#1a0a00';
+      ctx.font = 'bold 14px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(`⛓ ${state.recentArrest.name} HAS BEEN ARRESTED`, w / 2, 80);
+      ctx.restore();
     }
   }
 
@@ -936,5 +954,39 @@ function drawHUD(ctx: CanvasRenderingContext2D, state: GameState, w: number, h: 
   ctx.fillStyle = '#886644';
   ctx.font = '11px monospace';
   ctx.textAlign = 'center';
-  ctx.fillText('WASD/Arrows: Move | SPACE: Action | E: Task', w / 2, h - 10);
+  ctx.fillText('WASD/Arrows: Move | SPACE: Action', w / 2, h - 10);
+}
+
+/* ==================== JAIL ROOM ==================== */
+
+function drawJailRoom(ctx: CanvasRenderingContext2D) {
+  const r = JAIL_RECT;
+  // Floor
+  ctx.fillStyle = '#1c1410';
+  ctx.fillRect(r.x, r.y, r.w, r.h);
+
+  // Glow boundary
+  ctx.save();
+  ctx.shadowColor = '#ffaa33';
+  ctx.shadowBlur = 18;
+  ctx.strokeStyle = '#ffaa33';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(r.x, r.y, r.w, r.h);
+  ctx.restore();
+
+  // Bars (vertical)
+  ctx.strokeStyle = 'rgba(200,140,40,0.55)';
+  ctx.lineWidth = 3;
+  for (let bx = r.x + 20; bx < r.x + r.w; bx += 24) {
+    ctx.beginPath();
+    ctx.moveTo(bx, r.y);
+    ctx.lineTo(bx, r.y + r.h);
+    ctx.stroke();
+  }
+
+  // Label
+  ctx.fillStyle = 'rgba(255,170,51,0.7)';
+  ctx.font = 'bold 22px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('JAIL', r.x + r.w / 2, r.y + 28);
 }
