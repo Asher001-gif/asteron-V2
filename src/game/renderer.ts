@@ -447,10 +447,12 @@ function drawPlayer(ctx: CanvasRenderingContext2D, p: Player, human: Player) {
     ctx.stroke();
   }
 
-  if (p.role === 'imposter') {
-    drawImposterChar(ctx, x, y, s, p.frozen);
-  } else if (p.role === 'protector') {
+  // Hidden identity: imposter and crewmate look identical to all players.
+  if (p.role === 'protector') {
     drawProtectorChar(ctx, x, y, s, p.frozen);
+  } else if (p.role === 'imposter' && p.isHuman) {
+    // Show the human player their own traitor look
+    drawImposterChar(ctx, x, y, s, p.frozen);
   } else {
     drawCrewmateChar(ctx, x, y, s, p.frozen);
   }
