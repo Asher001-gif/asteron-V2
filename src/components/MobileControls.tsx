@@ -58,7 +58,7 @@ export default function MobileControls({ role, canAction, actionLabel, onMove, o
     onMove(0, 0);
   }, [onMove]);
 
-  const actionColor = role === 'imposter' ? '#e03030' : role === 'protector' ? '#3dba6f' : '#4a90d9';
+  const actionColor = role === 'imposter' ? '#e03030' : role === 'protector' ? '#ffaa33' : '#4a90d9';
 
   return (
     <div className="fixed inset-0 pointer-events-none z-40" style={{ touchAction: 'none' }}>
