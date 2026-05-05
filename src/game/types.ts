@@ -62,6 +62,9 @@ export interface Player {
   doingTask: boolean;
   taskStationId: number | null;
   taskProgress: number; // 0-1
+  jailed: boolean;
+  jailedUntil: number;
+  arrestCooldown: number;
 }
 
 export interface FreezeProjectile {
@@ -86,6 +89,7 @@ export interface GameState {
   totalTasks: number;
   activeTask: TaskChallenge | null;
   projectiles: FreezeProjectile[];
+  recentArrest: { name: string; time: number; eventId: number } | null;
 }
 
 export const PLAYER_RADIUS = 18;
@@ -98,3 +102,11 @@ export const MAP_WIDTH = 1600;
 export const MAP_HEIGHT = 1200;
 export const TASK_RANGE = 60;
 export const TOTAL_TASKS = 10;
+
+// Jail / Arrest
+export const ARREST_RANGE = 75;
+export const ARREST_COOLDOWN = 6000;
+export const JAIL_DURATION = 20000;
+export const MAX_JAILED = 2;
+export const JAIL_RECT = { x: 1290, y: 950, w: 270, h: 220 };
+export const JAIL_RELEASE = { x: 800, y: 700 };

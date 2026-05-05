@@ -1,4 +1,4 @@
-import { PLAYER_RADIUS } from './types';
+import { PLAYER_RADIUS, JAIL_RECT } from './types';
 
 export interface Wall {
   x1: number; y1: number;
@@ -53,6 +53,12 @@ export const ROOM_WALLS: Wall[] = [
   // Left wall with door gap in center (625±35)
   { x1: 1210, y1: 450, x2: 1210, y2: 590 },
   { x1: 1210, y1: 660, x2: 1210, y2: 800 },
+
+  // === Jail Room (bottom-right corner) ===
+  { x1: JAIL_RECT.x, y1: JAIL_RECT.y, x2: JAIL_RECT.x + JAIL_RECT.w, y2: JAIL_RECT.y },
+  { x1: JAIL_RECT.x, y1: JAIL_RECT.y + JAIL_RECT.h, x2: JAIL_RECT.x + JAIL_RECT.w, y2: JAIL_RECT.y + JAIL_RECT.h },
+  { x1: JAIL_RECT.x, y1: JAIL_RECT.y, x2: JAIL_RECT.x, y2: JAIL_RECT.y + JAIL_RECT.h },
+  { x1: JAIL_RECT.x + JAIL_RECT.w, y1: JAIL_RECT.y, x2: JAIL_RECT.x + JAIL_RECT.w, y2: JAIL_RECT.y + JAIL_RECT.h },
 ];
 
 // Decorative obstacles (circular, impassable)

@@ -1,6 +1,6 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
-import { GameState, TASK_RANGE, KILL_RANGE, FREEZE_RANGE } from '@/game/types';
-import { updateGame, humanKill, humanFreeze, getNearbyTask } from '@/game/engine';
+import { GameState, KILL_RANGE, ARREST_RANGE, MAX_JAILED } from '@/game/types';
+import { updateGame, humanKill, humanArrest, getNearbyTask } from '@/game/engine';
 import { generateTaskChallenge } from '@/game/tasks';
 import { renderGame } from '@/game/renderer';
 import TaskOverlay from './TaskOverlay';
@@ -25,6 +25,7 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
   const stateRef = useRef(gameState);
   const animRef = useRef(0);
   const mobileDir = useRef({ x: 0, y: 0 });
+  const lastArrestEventRef = useRef(0);
   const [size, setSize] = useState({ w: 800, h: 600 });
   const [showTask, setShowTask] = useState(false);
   const isMobile = useIsMobileDevice();
@@ -81,7 +82,21 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
         const now = performance.now();
         const s = stateRef.current;
         if (s.players[0].role === 'imposter') humanKill(s, now);
-        else if (s.players[0].role === 'protector') humanFreeze(s, now);
+        else if (s.players[0].role === 'protector') humanArrest(s, now);
+        else {
+          const taskId = getNearbyTask(s);
+          if (taskId !== null) {
+            const station = s.taskStations.find(t => t.id === taskId);
+            if (station) {
+              const challenge = generateTaskChallenge(station);
+              s.activeTask = challenge;
+              s.players[0].doingTask = true;
+              s.players[0].taskStationId = taskId;
+              setShowTask(true);
+              setGameState({ ...s });
+            }
+          }
+        }
       }
       if (key === 'e') {
         e.preventDefault();
@@ -123,7 +138,7 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
 
       // Apply mobile joystick direction
       const human = stateRef.current.players[0];
-      if (isMobile && human.alive && !human.frozen && !human.doingTask) {
+      if (isMobile && human.alive && !human.doingTask) {
         human.direction = { ...mobileDir.current };
       }
 
@@ -131,6 +146,27 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
         const newState = updateGame(stateRef.current, dt, keysRef.current, time);
         stateRef.current = newState;
         setGameState(newState);
+
+        // Arrest sound effect
+        const ra = newState.recentArrest;
+        if (ra && ra.eventId !== lastArrestEventRef.current) {
+          lastArrestEventRef.current = ra.eventId;
+          try {
+            const AC = (window as any).AudioContext || (window as any).webkitAudioContext;
+            if (AC) {
+              const ctx = new AC();
+              const o = ctx.createOscillator();
+              const g = ctx.createGain();
+              o.type = 'square';
+              o.frequency.setValueAtTime(880, ctx.currentTime);
+              o.frequency.exponentialRampToValueAtTime(220, ctx.currentTime + 0.35);
+              g.gain.setValueAtTime(0.18, ctx.currentTime);
+              g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+              o.connect(g); g.connect(ctx.destination);
+              o.start(); o.stop(ctx.currentTime + 0.4);
+            }
+          } catch {}
+        }
       }
 
       const canvas = canvasRef.current;
@@ -181,7 +217,7 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
     if (s.players[0].role === 'imposter') {
       humanKill(s, now);
     } else if (s.players[0].role === 'protector') {
-      humanFreeze(s, now);
+      humanArrest(s, now);
     } else if (s.players[0].role === 'crewmate') {
       const taskId = getNearbyTask(s);
       if (taskId !== null) {
@@ -204,12 +240,13 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
   let canAction = false;
   if (human.role === 'imposter') {
     actionLabel = 'KILL';
-    canAction = human.alive && !human.frozen && human.killCooldown <= 0 &&
+    canAction = human.alive && !human.jailed && human.killCooldown <= 0 &&
       gameState.players.some(p => p.alive && p.id !== 0 && p.role === 'crewmate' && dist(human, p) < KILL_RANGE);
   } else if (human.role === 'protector') {
-    actionLabel = 'FREEZE';
-    canAction = human.alive && !human.frozen && human.freezeCooldown <= 0 &&
-      gameState.players.some(p => p.alive && p.role === 'imposter' && !p.frozen && dist(human, p) < FREEZE_RANGE);
+    actionLabel = 'ARREST';
+    const jailedCount = gameState.players.filter(p => p.jailed).length;
+    canAction = human.alive && !human.jailed && human.arrestCooldown <= 0 && jailedCount < MAX_JAILED &&
+      gameState.players.some(p => p.alive && p.id !== 0 && !p.jailed && p.role !== 'protector' && dist(human, p) < ARREST_RANGE);
   } else {
     actionLabel = 'TASK';
     canAction = getNearbyTask(gameState) !== null;
@@ -228,7 +265,7 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
           const s = stateRef.current;
           const now = performance.now();
           if (s.players[0].role === 'imposter') humanKill(s, now);
-          else if (s.players[0].role === 'protector') humanFreeze(s, now);
+          else if (s.players[0].role === 'protector') humanArrest(s, now);
         }}
       />
       {showTask && gameState.activeTask && (
