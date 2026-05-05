@@ -25,6 +25,7 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
   const stateRef = useRef(gameState);
   const animRef = useRef(0);
   const mobileDir = useRef({ x: 0, y: 0 });
+  const lastArrestEventRef = useRef(0);
   const [size, setSize] = useState({ w: 800, h: 600 });
   const [showTask, setShowTask] = useState(false);
   const isMobile = useIsMobileDevice();
@@ -145,6 +146,27 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
         const newState = updateGame(stateRef.current, dt, keysRef.current, time);
         stateRef.current = newState;
         setGameState(newState);
+
+        // Arrest sound effect
+        const ra = newState.recentArrest;
+        if (ra && ra.eventId !== lastArrestEventRef.current) {
+          lastArrestEventRef.current = ra.eventId;
+          try {
+            const AC = (window as any).AudioContext || (window as any).webkitAudioContext;
+            if (AC) {
+              const ctx = new AC();
+              const o = ctx.createOscillator();
+              const g = ctx.createGain();
+              o.type = 'square';
+              o.frequency.setValueAtTime(880, ctx.currentTime);
+              o.frequency.exponentialRampToValueAtTime(220, ctx.currentTime + 0.35);
+              g.gain.setValueAtTime(0.18, ctx.currentTime);
+              g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+              o.connect(g); g.connect(ctx.destination);
+              o.start(); o.stop(ctx.currentTime + 0.4);
+            }
+          } catch {}
+        }
       }
 
       const canvas = canvasRef.current;
