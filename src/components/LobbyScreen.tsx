@@ -5,9 +5,9 @@ interface Props {
 }
 
 const roles: { role: Role; label: string; desc: string; color: string; icon: string }[] = [
-  { role: 'imposter', label: 'TRAITOR', desc: 'Kill all crewmates before tasks are done', color: '#e03030', icon: '🔪' },
-  { role: 'crewmate', label: 'CREWMATE', desc: 'Complete 10 tasks to win! Tap or press E near stations', color: '#4a90d9', icon: '🏃' },
-  { role: 'protector', label: 'PROTECTOR', desc: 'Freeze traitors to protect crew (can\'t do tasks)', color: '#3dba6f', icon: '🛡️' },
+  { role: 'imposter', label: 'TRAITOR', desc: 'Blend in with Crew, perform tasks, and eliminate them secretly.', color: '#e03030', icon: '🔪' },
+  { role: 'crewmate', label: 'CREWMATE', desc: 'Complete 10 tasks to win. Watch out — a Traitor hides among you.', color: '#4a90d9', icon: '🏃' },
+  { role: 'protector', label: 'PROTECTOR', desc: 'Arrest suspects to protect the crew. (Cannot do tasks).', color: '#3dba6f', icon: '🛡️' },
 ];
 
 export default function LobbyScreen({ onStart }: Props) {
@@ -61,7 +61,7 @@ export default function LobbyScreen({ onStart }: Props) {
         </div>
 
         <p className="text-muted-foreground font-mono text-xs">
-          WASD/Arrows to move • SPACE for action • Mobile: Virtual joystick
+          WASD/Arrows to move • SPACE: action (task / kill / arrest) • Mobile: joystick + button
         </p>
 
         <div className="space-y-2 pt-2">
