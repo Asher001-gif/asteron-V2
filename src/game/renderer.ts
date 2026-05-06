@@ -1,4 +1,4 @@
-import { GameState, Player, PLAYER_RADIUS, TASK_RANGE, FreezeProjectile, JAIL_RECT, JAIL_DURATION } from './types';
+import { GameState, Player, PLAYER_RADIUS, TASK_RANGE, FreezeProjectile, JAIL_RECT, JAIL_DURATION, DOOR_INTERACT_RANGE } from './types';
 import { ROOM_WALLS, OBSTACLES, ROOMS } from './collision';
 
 const FROZEN_COLOR = '#40d8f0';
@@ -35,6 +35,7 @@ export function renderGame(
   drawMarsSurface(ctx, state.mapWidth, state.mapHeight);
   drawJailRoom(ctx);
   drawTaskStations(ctx, state);
+  drawDoors(ctx, state);
 
   for (const p of state.players) {
     if (!p.alive) drawDeadPlayer(ctx, p);
@@ -72,6 +73,62 @@ export function renderGame(
   ctx.restore();
 
   drawHUD(ctx, state, canvasW, canvasH);
+}
+
+/* ==================== DOORS ==================== */
+function drawDoors(ctx: CanvasRenderingContext2D, state: GameState) {
+  const human = state.players[0];
+  for (const d of state.doors) {
+    const cx = d.cx, cy = d.cy;
+    const horizontal = d.y1 === d.y2;
+    const w = Math.abs(d.x2 - d.x1);
+    const h = Math.abs(d.y2 - d.y1);
+    const thickness = 12;
+
+    if (d.open) {
+      // Open: glowing dashed slot, passable
+      ctx.save();
+      ctx.strokeStyle = '#3dba6f';
+      ctx.lineWidth = 4;
+      ctx.setLineDash([6, 6]);
+      ctx.beginPath();
+      ctx.moveTo(d.x1, d.y1);
+      ctx.lineTo(d.x2, d.y2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    } else {
+      // Closed: solid metallic door
+      ctx.save();
+      if (horizontal) {
+        ctx.fillStyle = '#5a3a20';
+        ctx.fillRect(d.x1, cy - thickness / 2, w, thickness);
+        ctx.strokeStyle = '#1a0a05';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(d.x1, cy - thickness / 2, w, thickness);
+        ctx.fillStyle = '#cc8860';
+        ctx.fillRect(d.x1 + w / 2 - 4, cy - 2, 8, 4);
+      } else {
+        ctx.fillStyle = '#5a3a20';
+        ctx.fillRect(cx - thickness / 2, d.y1, thickness, h);
+        ctx.strokeStyle = '#1a0a05';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(cx - thickness / 2, d.y1, thickness, h);
+        ctx.fillStyle = '#cc8860';
+        ctx.fillRect(cx - 2, d.y1 + h / 2 - 4, 4, 8);
+      }
+      ctx.restore();
+    }
+
+    // Interaction prompt
+    const near = Math.hypot(human.x - cx, human.y - cy) < DOOR_INTERACT_RANGE;
+    if (near && human.alive && !human.jailed && human.role !== 'protector') {
+      ctx.fillStyle = '#ffd700';
+      ctx.font = 'bold 11px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(d.open ? '[E] CLOSE' : '[E] OPEN', cx, cy - 18);
+    }
+  }
 }
 
 /* ==================== MAP DRAWING ==================== */
