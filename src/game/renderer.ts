@@ -44,6 +44,20 @@ export function renderGame(
     if (p.alive) drawPlayer(ctx, p, human);
   }
 
+  // Bot door-interaction progress rings
+  for (const p of state.players) {
+    if (!p.alive || p.isHuman || !p.doorBusyUntil) continue;
+    const door = state.doors.find(d => d.id === p.doorBusyId);
+    if (!door) continue;
+    const remaining = Math.max(0, p.doorBusyUntil - performance.now());
+    const progress = 1 - remaining / 3000;
+    ctx.beginPath();
+    ctx.arc(door.cx, door.cy, 20, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
+    ctx.strokeStyle = '#ffd700';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  }
+
   // Draw projectiles
   drawProjectiles(ctx, state.projectiles);
 

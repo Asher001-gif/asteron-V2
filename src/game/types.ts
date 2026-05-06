@@ -73,6 +73,8 @@ export interface Player {
   actionPlanAt: number;
   actionPlanTargetId: number | null;
   actionSkipUntil: number;
+  doorBusyUntil: number;
+  doorBusyId: number | null;
 }
 
 export interface FreezeProjectile {
