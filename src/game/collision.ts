@@ -1,4 +1,4 @@
-import { PLAYER_RADIUS, JAIL_RECT } from './types';
+import { PLAYER_RADIUS, JAIL_RECT, Door } from './types';
 
 export interface Wall {
   x1: number; y1: number;
@@ -83,6 +83,18 @@ export const ROOMS: RoomInfo[] = [
   { label: 'RECOVER', x: 1210, y: 450, w: 350, h: 350, doorSide: 'left', doorCenter: 625 },
 ];
 
+// Door definitions matching the wall gaps.
+export function createDoors(): Door[] {
+  return [
+    // Research bottom door (horizontal segment 765..835 at y=340)
+    { id: 0, x1: 765, y1: 340, x2: 835, y2: 340, cx: 800, cy: 340, open: true, lastUsedAt: 0, label: 'RESEARCH' },
+    // Ecosystem right door (vertical segment x=390, y 590..660)
+    { id: 1, x1: 390, y1: 590, x2: 390, y2: 660, cx: 390, cy: 625, open: true, lastUsedAt: 0, label: 'ECOSYSTEM' },
+    // Recover left door (vertical segment x=1210, y 590..660)
+    { id: 2, x1: 1210, y1: 590, x2: 1210, y2: 660, cx: 1210, cy: 625, open: true, lastUsedAt: 0, label: 'RECOVER' },
+  ];
+}
+
 function pointToSegDist(px: number, py: number, x1: number, y1: number, x2: number, y2: number): { dist: number; nx: number; ny: number } {
   const dx = x2 - x1;
   const dy = y2 - y1;
@@ -97,7 +109,7 @@ function pointToSegDist(px: number, py: number, x1: number, y1: number, x2: numb
   return { dist, nx: dist > 0 ? npx / dist : 0, ny: dist > 0 ? npy / dist : 0 };
 }
 
-export function resolveCollisions(px: number, py: number): { x: number; y: number } {
+export function resolveCollisions(px: number, py: number, doors: Door[] = []): { x: number; y: number } {
   let x = px;
   let y = py;
   const r = PLAYER_RADIUS;
@@ -105,6 +117,17 @@ export function resolveCollisions(px: number, py: number): { x: number; y: numbe
   // Wall collisions
   for (const wall of ROOM_WALLS) {
     const { dist, nx, ny } = pointToSegDist(x, y, wall.x1, wall.y1, wall.x2, wall.y2);
+    if (dist < r) {
+      const push = r - dist;
+      x += nx * push;
+      y += ny * push;
+    }
+  }
+
+  // Closed door collisions
+  for (const door of doors) {
+    if (door.open) continue;
+    const { dist, nx, ny } = pointToSegDist(x, y, door.x1, door.y1, door.x2, door.y2);
     if (dist < r) {
       const push = r - dist;
       x += nx * push;
@@ -126,4 +149,31 @@ export function resolveCollisions(px: number, py: number): { x: number; y: numbe
   }
 
   return { x, y };
+}
+
+/* ===== Line of Sight ===== */
+function segmentsIntersect(
+  ax: number, ay: number, bx: number, by: number,
+  cx: number, cy: number, dx: number, dy: number
+): boolean {
+  const d1x = bx - ax, d1y = by - ay;
+  const d2x = dx - cx, d2y = dy - cy;
+  const denom = d1x * d2y - d1y * d2x;
+  if (Math.abs(denom) < 1e-9) return false;
+  const t = ((cx - ax) * d2y - (cy - ay) * d2x) / denom;
+  const u = ((cx - ax) * d1y - (cy - ay) * d1x) / denom;
+  return t >= 0 && t <= 1 && u >= 0 && u <= 1;
+}
+
+export function hasLineOfSight(
+  ax: number, ay: number, bx: number, by: number, doors: Door[] = []
+): boolean {
+  for (const w of ROOM_WALLS) {
+    if (segmentsIntersect(ax, ay, bx, by, w.x1, w.y1, w.x2, w.y2)) return false;
+  }
+  for (const d of doors) {
+    if (d.open) continue;
+    if (segmentsIntersect(ax, ay, bx, by, d.x1, d.y1, d.x2, d.y2)) return false;
+  }
+  return true;
 }
