@@ -11,6 +11,7 @@ const TASK_LABELS: Record<TaskType, string> = {
   password: '🔑 Password',
   ice: '🧊 Ice Shatter',
   dna: '🧬 DNA Slider',
+  door: '🚪 Door',
 };
 
 export function createTaskStations(): TaskStation[] {

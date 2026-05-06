@@ -10,7 +10,8 @@ export type TaskType =
   | 'magnetic'
   | 'password'
   | 'ice'
-  | 'dna';
+  | 'dna'
+  | 'door';
 
 export interface TaskStation {
   id: number;
@@ -40,6 +41,9 @@ export interface TaskChallenge {
   dnaOffset?: number;
   // ice
   tapsRequired?: number;
+  // door
+  doorId?: number;
+  doorAction?: 'open' | 'close';
 }
 
 export interface Player {
@@ -65,6 +69,10 @@ export interface Player {
   jailed: boolean;
   jailedUntil: number;
   arrestCooldown: number;
+  // Bot decision-making
+  actionPlanAt: number;
+  actionPlanTargetId: number | null;
+  actionSkipUntil: number;
 }
 
 export interface FreezeProjectile {
@@ -75,6 +83,18 @@ export interface FreezeProjectile {
   speed: number;
   startTime: number;
   duration: number; // ms
+}
+
+export interface Door {
+  id: number;
+  // Wall-segment endpoints (when closed, blocks movement & vision)
+  x1: number; y1: number;
+  x2: number; y2: number;
+  // Center point used for proximity checks
+  cx: number; cy: number;
+  open: boolean;
+  lastUsedAt: number;
+  label: string;
 }
 
 export interface GameState {
@@ -90,10 +110,11 @@ export interface GameState {
   activeTask: TaskChallenge | null;
   projectiles: FreezeProjectile[];
   recentArrest: { name: string; time: number; eventId: number } | null;
+  doors: Door[];
 }
 
 export const PLAYER_RADIUS = 18;
-export const KILL_RANGE = 50;
+export const KILL_RANGE = 42;
 export const FREEZE_RANGE = 120;
 export const FREEZE_DURATION = 5000;
 export const KILL_COOLDOWN = 5000;
@@ -104,9 +125,13 @@ export const TASK_RANGE = 60;
 export const TOTAL_TASKS = 10;
 
 // Jail / Arrest
-export const ARREST_RANGE = 75;
-export const ARREST_COOLDOWN = 6000;
+export const ARREST_RANGE = 55;
+export const ARREST_COOLDOWN = 10000;
 export const JAIL_DURATION = 20000;
 export const MAX_JAILED = 2;
 export const JAIL_RECT = { x: 1290, y: 950, w: 270, h: 220 };
 export const JAIL_RELEASE = { x: 800, y: 700 };
+
+// Doors
+export const DOOR_USE_COOLDOWN = 1500;
+export const DOOR_INTERACT_RANGE = 55;

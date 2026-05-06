@@ -1,6 +1,6 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
-import { GameState, KILL_RANGE, ARREST_RANGE, MAX_JAILED } from '@/game/types';
-import { updateGame, humanKill, humanArrest, getNearbyTask } from '@/game/engine';
+import { GameState, KILL_RANGE, ARREST_RANGE, MAX_JAILED, DOOR_USE_COOLDOWN } from '@/game/types';
+import { updateGame, humanKill, humanArrest, getNearbyTask, getNearbyDoor, toggleDoor } from '@/game/engine';
 import { generateTaskChallenge } from '@/game/tasks';
 import { renderGame } from '@/game/renderer';
 import TaskOverlay from './TaskOverlay';
@@ -101,6 +101,21 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
       if (key === 'e') {
         e.preventDefault();
         const s = stateRef.current;
+        // Door takes priority
+        const doorId = getNearbyDoor(s);
+        if (doorId !== null) {
+          const door = s.doors.find(d => d.id === doorId)!;
+          if (performance.now() - door.lastUsedAt >= DOOR_USE_COOLDOWN) {
+            s.activeTask = {
+              type: 'door', stationId: -1, prompt: door.open ? 'Close door' : 'Open door',
+              answer: '', doorId, doorAction: door.open ? 'close' : 'open',
+            };
+            s.players[0].doingTask = true;
+            setShowTask(true);
+            setGameState({ ...s });
+          }
+          return;
+        }
         const taskId = getNearbyTask(s);
         if (taskId !== null) {
           const station = s.taskStations.find(t => t.id === taskId);
@@ -184,7 +199,9 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
 
   const handleTaskComplete = useCallback(() => {
     const s = stateRef.current;
-    if (s.activeTask) {
+    if (s.activeTask && s.activeTask.type === 'door' && s.activeTask.doorId !== undefined) {
+      toggleDoor(s, s.activeTask.doorId, performance.now());
+    } else if (s.activeTask) {
       const station = s.taskStations.find(t => t.id === s.activeTask!.stationId);
       if (station && !station.completed) {
         station.completed = true;
@@ -219,6 +236,21 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
     } else if (s.players[0].role === 'protector') {
       humanArrest(s, now);
     } else if (s.players[0].role === 'crewmate') {
+      // Door has priority
+      const doorId = getNearbyDoor(s);
+      if (doorId !== null) {
+        const door = s.doors.find(d => d.id === doorId)!;
+        if (performance.now() - door.lastUsedAt >= DOOR_USE_COOLDOWN) {
+          s.activeTask = {
+            type: 'door', stationId: -1, prompt: door.open ? 'Close door' : 'Open door',
+            answer: '', doorId, doorAction: door.open ? 'close' : 'open',
+          };
+          s.players[0].doingTask = true;
+          setShowTask(true);
+          setGameState({ ...s });
+          return;
+        }
+      }
       const taskId = getNearbyTask(s);
       if (taskId !== null) {
         const station = s.taskStations.find(t => t.id === taskId);
@@ -248,8 +280,15 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
     canAction = human.alive && !human.jailed && human.arrestCooldown <= 0 && jailedCount < MAX_JAILED &&
       gameState.players.some(p => p.alive && p.id !== 0 && !p.jailed && p.role !== 'protector' && dist(human, p) < ARREST_RANGE);
   } else {
-    actionLabel = 'TASK';
-    canAction = getNearbyTask(gameState) !== null;
+    const doorId = getNearbyDoor(gameState);
+    if (doorId !== null) {
+      const door = gameState.doors.find(d => d.id === doorId)!;
+      actionLabel = door.open ? 'CLOSE' : 'OPEN';
+      canAction = (performance.now() - door.lastUsedAt) >= DOOR_USE_COOLDOWN;
+    } else {
+      actionLabel = 'TASK';
+      canAction = getNearbyTask(gameState) !== null;
+    }
   }
 
   return (

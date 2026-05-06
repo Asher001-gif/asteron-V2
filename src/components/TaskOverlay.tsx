@@ -28,6 +28,7 @@ export default function TaskOverlay({ task, onComplete, onCancel }: Props) {
           {task.type === 'password' && '🔑 PASSWORD CRACK'}
           {task.type === 'ice' && '🧊 ICE SHATTER'}
           {task.type === 'dna' && '🧬 DNA SLIDER'}
+          {task.type === 'door' && '🚪 DOOR CONTROL'}
         </h2>
 
         {task.type === 'frequency' && <FrequencyTask task={task} onComplete={onComplete} />}
@@ -40,7 +41,46 @@ export default function TaskOverlay({ task, onComplete, onCancel }: Props) {
         {task.type === 'password' && <PasswordTask task={task} onComplete={onComplete} />}
         {task.type === 'ice' && <IceTask task={task} onComplete={onComplete} />}
         {task.type === 'dna' && <DnaTask task={task} onComplete={onComplete} />}
+        {task.type === 'door' && <DoorTask task={task} onComplete={onComplete} />}
       </div>
+    </div>
+  );
+}
+
+/* ─── DOOR CONTROL ─── */
+function DoorTask({ task, onComplete }: { task: TaskChallenge; onComplete: () => void }) {
+  const action = task.doorAction || 'open';
+  const [val, setVal] = useState(0);
+  const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    if (val >= 100 && !done) {
+      setDone(true);
+      setTimeout(onComplete, 250);
+    }
+  }, [val, done, onComplete]);
+
+  return (
+    <div className="space-y-3 text-center">
+      <p className="text-xs font-mono text-muted-foreground">
+        Slide all the way to {action === 'open' ? 'OPEN' : 'CLOSE'} the door
+      </p>
+      <div className="relative w-32 h-32 mx-auto rounded-full border-2 border-border bg-background flex items-center justify-center">
+        <svg width="128" height="128" className="absolute inset-0">
+          <circle cx="64" cy="64" r="56" stroke="hsl(var(--muted))" strokeWidth="6" fill="none" />
+          <circle cx="64" cy="64" r="56"
+            stroke={action === 'open' ? '#3dba6f' : '#e85d3a'}
+            strokeWidth="6" fill="none"
+            strokeDasharray={`${(val / 100) * 351.86} 351.86`}
+            strokeLinecap="round"
+            transform="rotate(-90 64 64)" />
+        </svg>
+        <span className="font-mono text-2xl">{action === 'open' ? '🚪→' : '←🚪'}</span>
+      </div>
+      <input type="range" min={0} max={100} value={val}
+        onChange={e => setVal(Number(e.target.value))}
+        className="w-full accent-primary" />
+      <p className="text-xs font-mono text-muted-foreground">{val}%</p>
     </div>
   );
 }
