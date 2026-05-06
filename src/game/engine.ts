@@ -63,6 +63,8 @@ export function createGame(playerRole: Role): GameState {
     actionPlanAt: 0,
     actionPlanTargetId: null,
     actionSkipUntil: 0,
+    doorBusyUntil: 0,
+    doorBusyId: null,
   }));
 
   // Keep players out of jail at spawn
@@ -370,7 +372,38 @@ export function updateGame(state: GameState, dt: number, keys: Set<string>, now:
     if (p.killCooldown > 0) p.killCooldown -= dt;
     if (p.arrestCooldown > 0) p.arrestCooldown -= dt;
 
-    if (!p.isHuman) {
+    // Bot busy interacting with a door (3s)
+    if (!p.isHuman && p.doorBusyUntil > 0) {
+      if (now >= p.doorBusyUntil) {
+        if (p.doorBusyId !== null) {
+          const door = state.doors.find(d => d.id === p.doorBusyId);
+          if (door && now - door.lastUsedAt >= 0) {
+            door.open = !door.open;
+            door.lastUsedAt = now;
+          }
+        }
+        p.doorBusyUntil = 0;
+        p.doorBusyId = null;
+      } else {
+        p.direction = { x: 0, y: 0 };
+      }
+    }
+
+    if (!p.isHuman && p.doorBusyUntil === 0) {
+      // Check if there's a closed door right in front to interact with
+      if (p.role !== 'protector') {
+        const door = state.doors.find(d =>
+          !d.open && Math.hypot(d.cx - p.x, d.cy - p.y) < 50
+        );
+        if (door) {
+          p.doorBusyUntil = now + 3000;
+          p.doorBusyId = door.id;
+          p.direction = { x: 0, y: 0 };
+        }
+      }
+    }
+
+    if (!p.isHuman && p.doorBusyUntil === 0) {
       updateAI(p, state.players, state, now);
       performAIActions(p, state.players, state, now);
     }
