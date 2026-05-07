@@ -411,7 +411,6 @@ export function updateGame(state: GameState, dt: number, keys: Set<string>, now:
 
     if (!p.isHuman && p.doorBusyUntil === 0) {
       updateAI(p, state.players, state, now);
-      performAIActions(p, state.players, state, now);
     }
 
     p.x += p.direction.x * p.speed;
@@ -427,6 +426,25 @@ export function updateGame(state: GameState, dt: number, keys: Set<string>, now:
       p.x = resolved.x;
       p.y = resolved.y;
     }
+  }
+
+  // Throttled bot actions: at most 3 bots act per "tick window",
+  // and tick windows are spaced 0.5-1s apart.
+  if (now - _lastBotActionAt >= _nextBotActionGap) {
+    const candidates = state.players.filter(p =>
+      p.alive && !p.isHuman && !p.jailed && p.doorBusyUntil === 0
+    );
+    // Shuffle for fairness
+    for (let i = candidates.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+    }
+    const acting = candidates.slice(0, MAX_CONCURRENT_BOT_ACTIONS);
+    for (const p of acting) {
+      performAIActions(p, state.players, state, now);
+    }
+    _lastBotActionAt = now;
+    _nextBotActionGap = 500 + Math.random() * 500;
   }
 
   state.projectiles = state.projectiles.filter(p => now - p.startTime < p.duration);
