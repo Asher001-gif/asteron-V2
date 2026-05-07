@@ -336,19 +336,8 @@ function performAIActions(player: Player, allPlayers: Player[], state: GameState
     }
   }
 
-  if (player.role === 'crewmate' && player.doingTask && player.taskStationId !== null) {
-    player.taskProgress += 0.004;
-    if (player.taskProgress >= 1) {
-      const station = state.taskStations.find(t => t.id === player.taskStationId);
-      if (station && !station.completed) {
-        station.completed = true;
-        state.tasksCompleted++;
-      }
-      player.doingTask = false;
-      player.taskStationId = null;
-      player.taskProgress = 0;
-    }
-  }
+  // Task progress is ticked per-frame in updateGame (not throttled),
+  // so bot crewmates reliably finish a task in ~5 seconds.
 }
 
 export function updateGame(state: GameState, dt: number, keys: Set<string>, now: number): GameState {
@@ -377,6 +366,22 @@ export function updateGame(state: GameState, dt: number, keys: Set<string>, now:
 
     if (p.killCooldown > 0) p.killCooldown -= dt;
     if (p.arrestCooldown > 0) p.arrestCooldown -= dt;
+
+    // Bot crewmates progress their current task every frame (5s to complete)
+    if (!p.isHuman && p.alive && !p.jailed && p.role === 'crewmate' &&
+        p.doingTask && p.taskStationId !== null) {
+      p.taskProgress += dt / 5000;
+      if (p.taskProgress >= 1) {
+        const station = state.taskStations.find(t => t.id === p.taskStationId);
+        if (station && !station.completed) {
+          station.completed = true;
+          state.tasksCompleted++;
+        }
+        p.doingTask = false;
+        p.taskStationId = null;
+        p.taskProgress = 0;
+      }
+    }
 
     // Bot busy interacting with a door (3s)
     if (!p.isHuman && p.doorBusyUntil > 0) {
