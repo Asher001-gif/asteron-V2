@@ -550,9 +550,8 @@ function drawPlayer(ctx: CanvasRenderingContext2D, p: Player, human: Player) {
   if (p.role === 'protector') role = 'protector';
   else if (p.role === 'imposter' && p.isHuman) role = 'traitor';
 
-  // Alternate sprite frame for subtle animation
-  const frame = Math.floor(animTime / 350 + p.id) % 2 === 0 ? 'a' : 'b';
-  const spriteKey = `${role === 'crew' ? 'crew' : role === 'protector' ? 'protector' : 'traitor'}_${frame}`;
+  // Use a single sprite frame — alternating frames was perceived as a face-flip.
+  const spriteKey = `${role === 'crew' ? 'crew' : role === 'protector' ? 'protector' : 'traitor'}_a`;
   const img = SPRITES[spriteKey];
 
   const size = 52 * s;
