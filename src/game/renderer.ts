@@ -502,8 +502,19 @@ function drawPlayer(ctx: CanvasRenderingContext2D, p: Player, human: Player) {
   const x = p.x;
   const s = 1.0;
   const isMoving = Math.abs(p.direction.x) > 0.1 || Math.abs(p.direction.y) > 0.1;
-  const walkBob = isMoving && !p.frozen && !p.doingTask ? Math.sin(animTime * 0.012 + p.id * 2) * 3 : 0;
-  const y = p.y + walkBob;
+  // Constant gentle floating for all (since char is "floating")
+  const floatBob = Math.sin(animTime * 0.003 + p.id * 1.3) * 2.5;
+  const moveBob = isMoving && !p.doingTask ? Math.sin(animTime * 0.012 + p.id * 2) * 1.5 : 0;
+  const y = p.y + floatBob + moveBob;
+
+  // Track facing based on horizontal movement (sticky)
+  let facing = FACING.get(p.id) ?? 1;
+  if (p.direction.x > 0.15) facing = 1;
+  else if (p.direction.x < -0.15) facing = -1;
+  FACING.set(p.id, facing);
+
+  // Tilt in direction of movement
+  const tilt = isMoving && !p.doingTask ? p.direction.x * 0.18 : 0;
 
   if (p.frozen) {
     ctx.beginPath();
@@ -525,30 +536,38 @@ function drawPlayer(ctx: CanvasRenderingContext2D, p: Player, human: Player) {
     ctx.stroke();
   }
 
-  // Walking legs animation
-  if (isMoving && !p.frozen && !p.doingTask && p.alive) {
-    const legSwing = Math.sin(animTime * 0.015 + p.id * 2) * 5;
-    ctx.strokeStyle = '#888';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(x - 5, y + 18 * s);
-    ctx.lineTo(x - 5 - legSwing, y + 26 * s);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(x + 5, y + 18 * s);
-    ctx.lineTo(x + 5 + legSwing, y + 26 * s);
-    ctx.stroke();
-  }
+  // Soft shadow on ground (uses real p.y so it doesn't bob)
+  ctx.beginPath();
+  ctx.ellipse(x, p.y + 22, 14, 5, 0, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.fill();
 
   // Hidden identity: imposter and crewmate look identical to all players.
-  if (p.role === 'protector') {
-    drawProtectorChar(ctx, x, y, s, p.frozen);
-  } else if (p.role === 'imposter' && p.isHuman) {
-    // Show the human player their own traitor look
-    drawImposterChar(ctx, x, y, s, p.frozen);
+  let role: 'crew' | 'protector' | 'traitor' = 'crew';
+  if (p.role === 'protector') role = 'protector';
+  else if (p.role === 'imposter' && p.isHuman) role = 'traitor';
+
+  // Alternate sprite frame for subtle animation
+  const frame = Math.floor(animTime / 350 + p.id) % 2 === 0 ? 'a' : 'b';
+  const spriteKey = `${role === 'crew' ? 'crew' : role === 'protector' ? 'protector' : 'traitor'}_${frame}`;
+  const img = SPRITES[spriteKey];
+
+  const size = 52 * s;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(tilt);
+  ctx.scale(facing, 1);
+  if (p.frozen) ctx.globalAlpha = 0.7;
+  if (img && img.complete && img.naturalWidth > 0) {
+    ctx.drawImage(img, -size / 2, -size / 2, size, size);
   } else {
-    drawCrewmateChar(ctx, x, y, s, p.frozen);
+    // Fallback circle while sprite loads
+    ctx.beginPath();
+    ctx.arc(0, 0, 16, 0, Math.PI * 2);
+    ctx.fillStyle = role === 'protector' ? '#3dba6f' : role === 'traitor' ? '#e03030' : '#4a90d9';
+    ctx.fill();
   }
+  ctx.restore();
 
   ctx.fillStyle = '#ddd';
   ctx.font = 'bold 11px monospace';
