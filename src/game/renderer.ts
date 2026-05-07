@@ -483,7 +483,7 @@ function drawTaskStations(ctx: CanvasRenderingContext2D, state: GameState) {
     if (nearby && human.role === 'crewmate' && human.alive && !human.frozen && !human.doingTask) {
       ctx.fillStyle = '#ffd700';
       ctx.font = 'bold 11px monospace';
-      ctx.fillText('[E] USE', station.x, station.y - 30);
+      ctx.fillText('[SPACE] USE', station.x, station.y - 30);
     }
 
     const aiWorker = state.players.find(p => p.doingTask && p.taskStationId === station.id && !p.isHuman);
