@@ -507,10 +507,13 @@ function drawPlayer(ctx: CanvasRenderingContext2D, p: Player, human: Player) {
   const moveBob = isMoving && !p.doingTask ? Math.sin(animTime * 0.012 + p.id * 2) * 1.5 : 0;
   const y = p.y + floatBob + moveBob;
 
-  // Track facing based on horizontal movement (sticky)
+  // Track facing strictly from movement direction.
+  // Only update when actually moving and horizontal component is meaningful,
+  // so the sprite never flips due to tiny noise or pure vertical movement.
   let facing = FACING.get(p.id) ?? 1;
-  if (p.direction.x > 0.15) facing = 1;
-  else if (p.direction.x < -0.15) facing = -1;
+  if (isMoving && Math.abs(p.direction.x) > 0.35) {
+    facing = p.direction.x > 0 ? 1 : -1;
+  }
   FACING.set(p.id, facing);
 
   // Tilt in direction of movement
