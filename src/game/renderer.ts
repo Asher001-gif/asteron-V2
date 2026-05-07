@@ -1,5 +1,27 @@
 import { GameState, Player, PLAYER_RADIUS, TASK_RANGE, FreezeProjectile, JAIL_RECT, JAIL_DURATION, DOOR_INTERACT_RANGE } from './types';
 import { ROOM_WALLS, OBSTACLES, ROOMS } from './collision';
+import crewA from '@/assets/char-crew-a.png';
+import crewB from '@/assets/char-crew-b.png';
+import protA from '@/assets/char-protector-a.png';
+import protB from '@/assets/char-protector-b.png';
+import traitorA from '@/assets/char-traitor-a.png';
+import traitorB from '@/assets/char-traitor-b.png';
+
+const SPRITES: Record<string, HTMLImageElement> = {};
+function loadSprite(key: string, src: string) {
+  const img = new Image();
+  img.src = src;
+  SPRITES[key] = img;
+}
+loadSprite('crew_a', crewA);
+loadSprite('crew_b', crewB);
+loadSprite('protector_a', protA);
+loadSprite('protector_b', protB);
+loadSprite('traitor_a', traitorA);
+loadSprite('traitor_b', traitorB);
+
+// Per-player facing memory (renderer-local, no engine impact)
+const FACING: Map<number, number> = new Map();
 
 const FROZEN_COLOR = '#40d8f0';
 let animTime = 0;
