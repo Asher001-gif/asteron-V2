@@ -11,6 +11,12 @@ import { getNavigationDirection, getRoomAt } from './navigation';
 
 const NAMES = ['Astro', 'Nova', 'Blaze', 'Comet', 'Orbit', 'Dust', 'Nebula', 'Crater', 'Titan', 'Cosmo'];
 
+// Global bot action throttle: max 3 bots may act simultaneously, with a
+// 0.5-1s gap between successive bot action ticks.
+const MAX_CONCURRENT_BOT_ACTIONS = 3;
+let _lastBotActionAt = 0;
+let _nextBotActionGap = 600;
+
 const BOT_VISION: Record<Role, number> = {
   crewmate: 220,
   protector: 170,
