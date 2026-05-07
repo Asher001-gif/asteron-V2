@@ -507,12 +507,12 @@ function drawPlayer(ctx: CanvasRenderingContext2D, p: Player, human: Player) {
   const moveBob = isMoving && !p.doingTask ? Math.sin(animTime * 0.012 + p.id * 2) * 1.5 : 0;
   const y = p.y + floatBob + moveBob;
 
-  // Track facing strictly from movement direction.
-  // Only update when actually moving and horizontal component is meaningful,
-  // so the sprite never flips due to tiny noise or pure vertical movement.
+  // Facing locks to last clear horizontal movement.
+  // Stays the same until the player moves the OPPOSITE direction.
   let facing = FACING.get(p.id) ?? 1;
-  if (isMoving && Math.abs(p.direction.x) > 0.35) {
-    facing = p.direction.x > 0 ? 1 : -1;
+  if (isMoving && Math.abs(p.direction.x) > 0.5) {
+    const newFacing = p.direction.x > 0 ? 1 : -1;
+    if (newFacing !== facing) facing = newFacing;
   }
   FACING.set(p.id, facing);
 
@@ -550,9 +550,8 @@ function drawPlayer(ctx: CanvasRenderingContext2D, p: Player, human: Player) {
   if (p.role === 'protector') role = 'protector';
   else if (p.role === 'imposter' && p.isHuman) role = 'traitor';
 
-  // Alternate sprite frame for subtle animation
-  const frame = Math.floor(animTime / 350 + p.id) % 2 === 0 ? 'a' : 'b';
-  const spriteKey = `${role === 'crew' ? 'crew' : role === 'protector' ? 'protector' : 'traitor'}_${frame}`;
+  // Use a single sprite frame — alternating frames was perceived as a face-flip.
+  const spriteKey = `${role === 'crew' ? 'crew' : role === 'protector' ? 'protector' : 'traitor'}_a`;
   const img = SPRITES[spriteKey];
 
   const size = 52 * s;
