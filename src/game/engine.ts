@@ -40,7 +40,7 @@ const PATROL_POINTS = [
   { x: 400, y: 1000 }, { x: 1200, y: 1000 },
 ];
 
-export function createGame(playerRole: Role): GameState {
+export function createGame(playerRole: Role, playerName?: string): GameState {
   const roles: Role[] = ['imposter', 'imposter', 'protector', 'protector',
     'crewmate', 'crewmate', 'crewmate', 'crewmate', 'crewmate', 'crewmate'];
   const roleIdx = roles.indexOf(playerRole);
@@ -52,6 +52,7 @@ export function createGame(playerRole: Role): GameState {
 
   // Pick 9 random unique names for bots (player 0 is human, named "You")
   const shuffledNames = [...BOT_NAMES].sort(() => Math.random() - 0.5);
+  const humanName = (playerName && playerName.trim()) || 'Astro';
   const players: Player[] = roles.map((role, i) => ({
     id: i,
     x: 200 + Math.random() * (MAP_WIDTH - 400),
@@ -60,7 +61,7 @@ export function createGame(playerRole: Role): GameState {
     alive: true,
     frozen: false,
     frozenUntil: 0,
-    name: i === 0 ? 'You' : shuffledNames[(i - 1) % shuffledNames.length],
+    name: i === 0 ? humanName : shuffledNames[(i - 1) % shuffledNames.length],
     isHuman: i === 0,
     speed: role === 'imposter' ? 3.6 : 3.3,
     direction: { x: 0, y: 0 },
