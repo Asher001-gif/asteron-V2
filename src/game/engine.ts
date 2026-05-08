@@ -13,6 +13,9 @@ const BOT_NAMES = [
   'StarBoy', 'error504', 'top_dawg', 'LunarLord', 'FireBender',
   'AlphaApex', 'KnightRider', 'ViperStriker', 'itz Anya',
   'Naruto23', 'Goku', 'technoblade_never_dies',
+  'NovaStrike', 'unknown753', 'Riya', 'Alam', 'Keshav chandra',
+  'Iiiiiiiiiiiiii.......', 'ZeroPixel9', 'LunaUsagi12', 'RapidAimYT',
+  'GrimReaper_Pro', 'Cornely3', 'Emma', 'Amelia',
 ];
 
 // Global bot action throttle: max 3 bots may act simultaneously, with a
