@@ -9,7 +9,11 @@ import { createTaskStations } from './tasks';
 import { resolveCollisions, hasLineOfSight, createDoors } from './collision';
 import { getNavigationDirection, getRoomAt } from './navigation';
 
-const NAMES = ['Astro', 'Nova', 'Blaze', 'Comet', 'Orbit', 'Dust', 'Nebula', 'Crater', 'Titan', 'Cosmo'];
+const BOT_NAMES = [
+  'StarBoy', 'error504', 'top_dawg', 'LunarLord', 'FireBender',
+  'AlphaApex', 'KnightRider', 'ViperStriker', 'itz Anya',
+  'Naruto23', 'Goku', 'technoblade_never_dies',
+];
 
 // Global bot action throttle: max 3 bots may act simultaneously, with a
 // 0.5-1s gap between successive bot action ticks.
@@ -43,6 +47,8 @@ export function createGame(playerRole: Role): GameState {
     [roles[i], roles[j]] = [roles[j], roles[i]];
   }
 
+  // Pick 9 random unique names for bots (player 0 is human, named "You")
+  const shuffledNames = [...BOT_NAMES].sort(() => Math.random() - 0.5);
   const players: Player[] = roles.map((role, i) => ({
     id: i,
     x: 200 + Math.random() * (MAP_WIDTH - 400),
@@ -51,7 +57,7 @@ export function createGame(playerRole: Role): GameState {
     alive: true,
     frozen: false,
     frozenUntil: 0,
-    name: NAMES[i],
+    name: i === 0 ? 'You' : shuffledNames[(i - 1) % shuffledNames.length],
     isHuman: i === 0,
     speed: role === 'imposter' ? 3.6 : 3.3,
     direction: { x: 0, y: 0 },
@@ -198,20 +204,7 @@ function patrolAI(player: Player, otherProtector: Player | undefined, now: numbe
 }
 
 function aiCrewmateBehavior(player: Player, visible: Player[], state: GameState, now: number) {
-  const visibleImposters = visible.filter(p => p.role === 'imposter');
-  const nearestImposter = visibleImposters.length > 0
-    ? visibleImposters.reduce((a, b) => dist(player, a) < dist(player, b) ? a : b) : null;
-
-  if (nearestImposter && dist(player, nearestImposter) < 150) {
-    player.doingTask = false;
-    player.taskStationId = null;
-    player.taskProgress = 0;
-    const fleeX = player.x + (player.x - nearestImposter.x);
-    const fleeY = player.y + (player.y - nearestImposter.y);
-    player.direction = getNavigationDirection(player.x, player.y, fleeX, fleeY);
-    return;
-  }
-
+  // Crew bots do NOT know who is an imposter — they just focus on tasks.
   if (player.doingTask) { player.direction = { x: 0, y: 0 }; return; }
 
   const vision = BOT_VISION[player.role];
