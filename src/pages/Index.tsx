@@ -46,17 +46,17 @@ export default function Index() {
   if (loading) return <LoadingScreen />;
   if (!gameState) return (
     <>
-      <div className="fixed top-3 left-3 z-[60] flex items-center gap-2 p-2 rounded-lg bg-card/90 border border-primary/40 backdrop-blur-sm max-w-[280px]">
+      <div className="fixed top-3 left-3 z-[60] flex items-center gap-2 p-2 rounded-lg bg-blue-600/90 border border-blue-400 backdrop-blur-sm max-w-[280px] shadow-lg shadow-blue-900/40">
         {!editing ? (
           <>
-            <span className="font-mono text-xs text-primary px-1">
-              Welcome, {username}!{saved && <span className="text-accent-foreground/70 ml-1">✓</span>}
+            <span className="font-mono text-xs text-white px-1">
+              Welcome, {username}!{saved && <span className="text-white/80 ml-1">✓</span>}
             </span>
             <button
               onClick={() => { setDraftName(username); setEditing(true); }}
               aria-label="Edit username"
               title="Edit name"
-              className="w-6 h-6 flex items-center justify-center rounded border border-primary/50 text-primary text-xs hover:bg-primary/10"
+              className="w-6 h-6 flex items-center justify-center rounded border border-white/60 text-white text-xs hover:bg-white/20"
             >
               ✎
             </button>
@@ -70,11 +70,11 @@ export default function Index() {
               onKeyDown={(e) => { if (e.key === 'Enter') handleSaveName(); }}
               placeholder="Enter username"
               maxLength={20}
-              className="flex-1 min-w-0 px-2 py-1 rounded bg-background border border-input text-foreground font-mono text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+              className="flex-1 min-w-0 px-2 py-1 rounded bg-white text-blue-900 placeholder:text-blue-400 border border-blue-300 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-white"
             />
             <button
               onClick={handleSaveName}
-              className="px-3 py-1 rounded bg-primary text-primary-foreground font-mono text-xs font-bold hover:bg-primary/90"
+              className="px-3 py-1 rounded bg-white text-blue-700 font-mono text-xs font-bold hover:bg-blue-50"
             >
               Save
             </button>
