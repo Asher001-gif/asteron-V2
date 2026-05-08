@@ -12,6 +12,7 @@ export default function Index() {
   const [username, setUsername] = useState<string>('Astro');
   const [draftName, setDraftName] = useState<string>('');
   const [saved, setSaved] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem('mb_username');
@@ -26,6 +27,7 @@ export default function Index() {
     setUsername(name);
     setDraftName(name);
     setSaved(true);
+    setEditing(false);
     setTimeout(() => setSaved(false), 1500);
   }, [draftName]);
 
@@ -44,23 +46,40 @@ export default function Index() {
   if (loading) return <LoadingScreen />;
   if (!gameState) return (
     <>
-      <div className="fixed top-3 left-3 z-[60] flex flex-col gap-2 p-3 rounded-lg bg-card/90 border border-primary/40 backdrop-blur-sm max-w-[260px]">
-        <div className="font-mono text-xs text-primary">Welcome, {username}!</div>
-        <div className="flex gap-2">
-          <input
-            value={draftName}
-            onChange={(e) => setDraftName(e.target.value)}
-            placeholder="Enter username"
-            maxLength={20}
-            className="flex-1 min-w-0 px-2 py-1 rounded bg-background border border-input text-foreground font-mono text-xs focus:outline-none focus:ring-1 focus:ring-primary"
-          />
-          <button
-            onClick={handleSaveName}
-            className="px-3 py-1 rounded bg-primary text-primary-foreground font-mono text-xs font-bold hover:bg-primary/90"
-          >
-            {saved ? 'Saved' : 'Save'}
-          </button>
-        </div>
+      <div className="fixed top-3 left-3 z-[60] flex items-center gap-2 p-2 rounded-lg bg-card/90 border border-primary/40 backdrop-blur-sm max-w-[280px]">
+        {!editing ? (
+          <>
+            <span className="font-mono text-xs text-primary px-1">
+              Welcome, {username}!{saved && <span className="text-accent-foreground/70 ml-1">✓</span>}
+            </span>
+            <button
+              onClick={() => { setDraftName(username); setEditing(true); }}
+              aria-label="Edit username"
+              title="Edit name"
+              className="w-6 h-6 flex items-center justify-center rounded border border-primary/50 text-primary text-xs hover:bg-primary/10"
+            >
+              ✎
+            </button>
+          </>
+        ) : (
+          <>
+            <input
+              autoFocus
+              value={draftName}
+              onChange={(e) => setDraftName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleSaveName(); }}
+              placeholder="Enter username"
+              maxLength={20}
+              className="flex-1 min-w-0 px-2 py-1 rounded bg-background border border-input text-foreground font-mono text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+            <button
+              onClick={handleSaveName}
+              className="px-3 py-1 rounded bg-primary text-primary-foreground font-mono text-xs font-bold hover:bg-primary/90"
+            >
+              Save
+            </button>
+          </>
+        )}
       </div>
       <LobbyScreen onStart={handleStart} />
     </>
