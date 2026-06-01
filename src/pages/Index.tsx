@@ -6,6 +6,7 @@ import LobbyScreen from '@/components/LobbyScreen';
 import SettingsScreen from '@/components/SettingsScreen';
 import GameOverScreen from '@/components/GameOverScreen';
 import LoadingScreen from '@/components/LoadingScreen';
+import TutorialScreen from '@/components/TutorialScreen';
 
 export default function Index() {
   const [gameState, setGameState] = useState<GameState | null>(null);
