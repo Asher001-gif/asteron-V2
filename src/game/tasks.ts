@@ -1,4 +1,4 @@
-import { TaskChallenge, TaskStation, TaskType, TOTAL_TASKS } from './types';
+import { TaskChallenge, TaskStation, TaskType, TOTAL_TASKS, MAP_WIDTH, MAP_HEIGHT } from './types';
 
 const TASK_LABELS: Record<TaskType, string> = {
   frequency: '📻 Frequency',
@@ -14,7 +14,7 @@ const TASK_LABELS: Record<TaskType, string> = {
   door: '🚪 Door',
 };
 
-export function createTaskStations(): TaskStation[] {
+export function createTaskStations(count: number = TOTAL_TASKS): TaskStation[] {
   const positions = [
     // Research room
     { x: 680, y: 150 }, { x: 850, y: 200 }, { x: 950, y: 120 },
@@ -31,14 +31,28 @@ export function createTaskStations(): TaskStation[] {
     'power', 'magnetic', 'password', 'ice', 'dna',
   ];
 
-  return positions.slice(0, TOTAL_TASKS).map((pos, i) => ({
-    id: i,
-    x: pos.x,
-    y: pos.y,
-    label: TASK_LABELS[types[i]],
-    taskType: types[i],
-    completed: false,
-  }));
+  const n = Math.max(0, Math.min(15, count));
+  const stations: TaskStation[] = [];
+  for (let i = 0; i < n; i++) {
+    let pos = positions[i];
+    if (!pos) {
+      // Repeat a previous task at a new random location within map bounds
+      pos = {
+        x: 150 + Math.random() * (MAP_WIDTH - 300),
+        y: 150 + Math.random() * (MAP_HEIGHT - 300),
+      };
+    }
+    const type = types[i % types.length];
+    stations.push({
+      id: i,
+      x: pos.x,
+      y: pos.y,
+      label: TASK_LABELS[type],
+      taskType: type,
+      completed: false,
+    });
+  }
+  return stations;
 }
 
 export function generateTaskChallenge(station: TaskStation): TaskChallenge {
