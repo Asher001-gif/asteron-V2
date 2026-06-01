@@ -12,6 +12,7 @@ export default function Index() {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [loading, setLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
   const [username, setUsername] = useState<string>('Astro');
   const [draftName, setDraftName] = useState<string>('');
   const [saved, setSaved] = useState(false);
