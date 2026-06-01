@@ -511,6 +511,7 @@ export function humanKill(state: GameState, now: number): boolean {
 export function humanArrest(state: GameState, now: number): boolean {
   const human = state.players[0];
   if (!human.alive || human.jailed || human.role !== 'protector' || human.arrestCooldown > 0) return false;
+  if (state.jailDuration <= 0) return false;
   const jailedCount = state.players.filter(p => p.jailed).length;
   if (jailedCount >= MAX_JAILED) return false;
   const targets = state.players.filter(p =>
