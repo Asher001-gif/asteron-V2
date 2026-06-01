@@ -1,5 +1,28 @@
 export type Role = 'imposter' | 'crewmate' | 'protector';
 
+export type Ability = 'jail' | 'crew' | 'kill' | 'shooter';
+
+export type JailTimerOption = 'off' | 10 | 20 | 'infinity';
+export type SpeedOption = 'slow' | 'medium' | 'fast';
+
+export interface GameSettings {
+  tasks: number;          // 0-15
+  jailTimer: JailTimerOption;
+  playerCount: number;    // 2-12
+  speed: SpeedOption;
+  roleAbilities: [Ability, Ability, Ability]; // role1, role2, role3
+  roleCounts: [number, number, number];       // sum === playerCount
+}
+
+export const DEFAULT_SETTINGS: GameSettings = {
+  tasks: 10,
+  jailTimer: 20,
+  playerCount: 10,
+  speed: 'medium',
+  roleAbilities: ['crew', 'kill', 'jail'],
+  roleCounts: [6, 2, 2],
+};
+
 export type TaskType =
   | 'frequency'
   | 'morse'
@@ -113,6 +136,8 @@ export interface GameState {
   projectiles: FreezeProjectile[];
   recentArrest: { name: string; time: number; eventId: number } | null;
   doors: Door[];
+  jailDuration: number;        // 0 = arrest disabled, Infinity = permanent
+  settings: GameSettings;
 }
 
 export const PLAYER_RADIUS = 18;
