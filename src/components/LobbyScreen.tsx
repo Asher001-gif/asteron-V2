@@ -1,16 +1,8 @@
-import { Role } from '@/game/types';
-
 interface Props {
-  onStart: (role: Role) => void;
+  onEnter: () => void;
 }
 
-const roles: { role: Role; label: string; desc: string; color: string; icon: string }[] = [
-  { role: 'imposter', label: 'TRAITOR', desc: 'Blend in with Crew, perform tasks, and eliminate them secretly.', color: '#e03030', icon: '🔪' },
-  { role: 'crewmate', label: 'CREWMATE', desc: 'Complete 10 tasks to win. Watch out — a Traitor hides among you.', color: '#4a90d9', icon: '🏃' },
-  { role: 'protector', label: 'PROTECTOR', desc: 'Arrest suspects to protect the crew. (Cannot do tasks).', color: '#3dba6f', icon: '🛡️' },
-];
-
-export default function LobbyScreen({ onStart }: Props) {
+export default function LobbyScreen({ onEnter }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background overflow-y-auto">
       <div className="absolute inset-0 overflow-hidden">
@@ -28,37 +20,23 @@ export default function LobbyScreen({ onStart }: Props) {
           />
         ))}
       </div>
-      <div className="relative text-center space-y-8 p-8 max-w-lg my-auto">
+      <div className="relative text-center space-y-10 p-8 max-w-lg my-auto flex flex-col items-center">
         <div>
           <h1 className="text-5xl font-bold font-mono tracking-widest text-primary mb-2">
             MARS BETRAYAL
           </h1>
           <p className="text-muted-foreground font-mono text-sm">
-            10 Players • 2 Traitors • 2 Protectors • 6 Crew
+            Customizable rules & roles • Up to 12 players
           </p>
         </div>
 
-        <div className="space-y-4">
-          <p className="text-foreground font-mono text-lg">Choose your role:</p>
-          {roles.map(r => (
-            <button
-              key={r.role}
-              onClick={() => onStart(r.role)}
-              className="w-full p-4 rounded-xl border-2 transition-all hover:scale-[1.02] active:scale-[0.98] bg-card text-left"
-              style={{ borderColor: r.color }}
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-3xl">{r.icon}</span>
-                <div>
-                  <div className="font-mono font-bold text-lg" style={{ color: r.color }}>
-                    {r.label}
-                  </div>
-                  <div className="text-muted-foreground font-mono text-sm">{r.desc}</div>
-                </div>
-              </div>
-            </button>
-          ))}
-        </div>
+        <button
+          onClick={onEnter}
+          aria-label="Enter game"
+          className="px-12 py-5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-mono font-bold tracking-[0.4em] text-2xl shadow-xl shadow-blue-900/40 border border-blue-400 transition-transform hover:scale-105 active:scale-95"
+        >
+          ENTER
+        </button>
 
         <p className="text-muted-foreground font-mono text-xs">
           WASD/Arrows to move • SPACE: action (task / kill / arrest) • Mobile: joystick + button
