@@ -3,7 +3,8 @@ import {
   PLAYER_RADIUS, KILL_RANGE,
   KILL_COOLDOWN, MAP_WIDTH, MAP_HEIGHT, TASK_RANGE, TOTAL_TASKS,
   ARREST_RANGE, ARREST_COOLDOWN, JAIL_DURATION, MAX_JAILED, JAIL_RECT, JAIL_RELEASE,
-  DOOR_INTERACT_RANGE, DOOR_USE_COOLDOWN
+  DOOR_INTERACT_RANGE, DOOR_USE_COOLDOWN,
+  GameSettings, DEFAULT_SETTINGS, Ability
 } from './types';
 import { createTaskStations } from './tasks';
 import { resolveCollisions, hasLineOfSight, createDoors } from './collision';
@@ -40,15 +41,41 @@ const PATROL_POINTS = [
   { x: 400, y: 1000 }, { x: 1200, y: 1000 },
 ];
 
-export function createGame(playerRole: Role, playerName?: string): GameState {
-  const roles: Role[] = ['imposter', 'imposter', 'protector', 'protector',
-    'crewmate', 'crewmate', 'crewmate', 'crewmate', 'crewmate', 'crewmate'];
-  const roleIdx = roles.indexOf(playerRole);
-  [roles[0], roles[roleIdx]] = [roles[roleIdx], roles[0]];
-  for (let i = roles.length - 1; i > 1; i--) {
-    const j = 1 + Math.floor(Math.random() * i);
+const ABILITY_TO_ROLE: Record<Ability, Role> = {
+  crew: 'crewmate',
+  kill: 'imposter',
+  shooter: 'imposter',
+  jail: 'protector',
+};
+
+const SPEED_MULT: Record<GameSettings['speed'], number> = {
+  slow: 0.7, medium: 1.0, fast: 1.45,
+};
+
+function jailDurationFromSetting(opt: GameSettings['jailTimer']): number {
+  if (opt === 'off') return 0;
+  if (opt === 'infinity') return Number.MAX_SAFE_INTEGER;
+  return opt * 1000;
+}
+
+export function createGame(settings: GameSettings = DEFAULT_SETTINGS, playerName?: string): GameState {
+  // Build role list from ability counts
+  const roles: Role[] = [];
+  for (let i = 0; i < 3; i++) {
+    const r = ABILITY_TO_ROLE[settings.roleAbilities[i]];
+    for (let k = 0; k < settings.roleCounts[i]; k++) roles.push(r);
+  }
+  // Trim/pad to playerCount (safety)
+  while (roles.length < settings.playerCount) roles.push('crewmate');
+  roles.length = settings.playerCount;
+
+  // Shuffle, then ensure index 0 (human) is randomly assigned
+  for (let i = roles.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
     [roles[i], roles[j]] = [roles[j], roles[i]];
   }
+
+  const speedMult = SPEED_MULT[settings.speed];
 
   // Pick 9 random unique names for bots (player 0 is human, named "You")
   const shuffledNames = [...BOT_NAMES].sort(() => Math.random() - 0.5);
@@ -63,7 +90,7 @@ export function createGame(playerRole: Role, playerName?: string): GameState {
     frozenUntil: 0,
     name: i === 0 ? humanName : shuffledNames[(i - 1) % shuffledNames.length],
     isHuman: i === 0,
-    speed: role === 'imposter' ? 3.6 : 3.3,
+    speed: (role === 'imposter' ? 3.6 : 3.3) * speedMult,
     direction: { x: 0, y: 0 },
     aiTargetX: MAP_WIDTH / 2,
     aiTargetY: MAP_HEIGHT / 2,
@@ -98,13 +125,15 @@ export function createGame(playerRole: Role, playerName?: string): GameState {
     timeElapsed: 0,
     mapWidth: MAP_WIDTH,
     mapHeight: MAP_HEIGHT,
-    taskStations: createTaskStations(),
+    taskStations: createTaskStations(settings.tasks),
     tasksCompleted: 0,
-    totalTasks: TOTAL_TASKS,
+    totalTasks: settings.tasks,
     activeTask: null,
     projectiles: [],
     recentArrest: null,
     doors: createDoors(),
+    jailDuration: jailDurationFromSetting(settings.jailTimer),
+    settings,
   };
 }
 
@@ -233,7 +262,7 @@ function wanderAI(player: Player, now: number) {
 let _arrestEventId = 0;
 function arrestPlayer(state: GameState, target: Player, now: number) {
   target.jailed = true;
-  target.jailedUntil = now + JAIL_DURATION;
+  target.jailedUntil = now + state.jailDuration;
   target.doingTask = false;
   target.taskStationId = null;
   target.taskProgress = 0;
@@ -293,6 +322,7 @@ function performAIActions(player: Player, allPlayers: Player[], state: GameState
   }
 
   if (player.role === 'protector' && player.arrestCooldown <= 0 && now >= player.actionSkipUntil) {
+    if (state.jailDuration <= 0) return;
     const candidates = visible.filter(p =>
       !p.jailed && p.role !== 'protector' && dist(player, p) < ARREST_RANGE &&
       hasLineOfSight(player.x, player.y, p.x, p.y, state.doors)
@@ -481,6 +511,7 @@ export function humanKill(state: GameState, now: number): boolean {
 export function humanArrest(state: GameState, now: number): boolean {
   const human = state.players[0];
   if (!human.alive || human.jailed || human.role !== 'protector' || human.arrestCooldown > 0) return false;
+  if (state.jailDuration <= 0) return false;
   const jailedCount = state.players.filter(p => p.jailed).length;
   if (jailedCount >= MAX_JAILED) return false;
   const targets = state.players.filter(p =>

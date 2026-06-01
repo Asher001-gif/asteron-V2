@@ -1,14 +1,16 @@
 import { useState, useCallback, useEffect } from 'react';
-import { GameState, Role } from '@/game/types';
+import { GameSettings, GameState } from '@/game/types';
 import { createGame } from '@/game/engine';
 import GameCanvas from '@/components/GameCanvas';
 import LobbyScreen from '@/components/LobbyScreen';
+import SettingsScreen from '@/components/SettingsScreen';
 import GameOverScreen from '@/components/GameOverScreen';
 import LoadingScreen from '@/components/LoadingScreen';
 
 export default function Index() {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [username, setUsername] = useState<string>('Astro');
   const [draftName, setDraftName] = useState<string>('');
   const [saved, setSaved] = useState(false);
@@ -31,19 +33,29 @@ export default function Index() {
     setTimeout(() => setSaved(false), 1500);
   }, [draftName]);
 
-  const handleStart = useCallback((role: Role) => {
+  const handleStart = useCallback((settings: GameSettings) => {
+    setShowSettings(false);
     setLoading(true);
     setTimeout(() => {
-      setGameState(createGame(role, username));
+      setGameState(createGame(settings, username));
       setLoading(false);
     }, 2500);
   }, [username]);
 
   const handleRestart = useCallback(() => {
     setGameState(null);
+    setShowSettings(false);
   }, []);
 
   if (loading) return <LoadingScreen />;
+  if (showSettings && !gameState) {
+    return (
+      <SettingsScreen
+        onBack={() => setShowSettings(false)}
+        onStart={handleStart}
+      />
+    );
+  }
   if (!gameState) return (
     <>
       <div className="fixed top-3 left-3 z-[60] flex items-center gap-2 p-2 rounded-lg bg-blue-600/90 border border-blue-400 backdrop-blur-sm max-w-[280px] shadow-lg shadow-blue-900/40">
@@ -81,7 +93,7 @@ export default function Index() {
           </>
         )}
       </div>
-      <LobbyScreen onStart={handleStart} />
+      <LobbyScreen onEnter={() => setShowSettings(true)} />
     </>
   );
 
