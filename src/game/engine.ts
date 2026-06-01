@@ -322,6 +322,7 @@ function performAIActions(player: Player, allPlayers: Player[], state: GameState
   }
 
   if (player.role === 'protector' && player.arrestCooldown <= 0 && now >= player.actionSkipUntil) {
+    if (state.jailDuration <= 0) return;
     const candidates = visible.filter(p =>
       !p.jailed && p.role !== 'protector' && dist(player, p) < ARREST_RANGE &&
       hasLineOfSight(player.x, player.y, p.x, p.y, state.doors)
