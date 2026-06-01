@@ -6,11 +6,13 @@ import LobbyScreen from '@/components/LobbyScreen';
 import SettingsScreen from '@/components/SettingsScreen';
 import GameOverScreen from '@/components/GameOverScreen';
 import LoadingScreen from '@/components/LoadingScreen';
+import TutorialScreen from '@/components/TutorialScreen';
 
 export default function Index() {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [loading, setLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
   const [username, setUsername] = useState<string>('Astro');
   const [draftName, setDraftName] = useState<string>('');
   const [saved, setSaved] = useState(false);
@@ -56,46 +58,52 @@ export default function Index() {
       />
     );
   }
-  if (!gameState) return (
-    <>
-      <div className="fixed top-3 left-3 z-[60] flex items-center gap-2 p-2 rounded-lg bg-blue-600/90 border border-blue-400 backdrop-blur-sm max-w-[280px] shadow-lg shadow-blue-900/40">
-        {!editing ? (
-          <>
-            <span className="font-mono text-xs text-white px-1">
-              Welcome, {username}!{saved && <span className="text-white/80 ml-1">✓</span>}
-            </span>
-            <button
-              onClick={() => { setDraftName(username); setEditing(true); }}
-              aria-label="Edit username"
-              title="Edit name"
-              className="w-6 h-6 flex items-center justify-center rounded border border-white/60 text-white text-xs hover:bg-white/20"
-            >
-              ✎
-            </button>
-          </>
-        ) : (
-          <>
-            <input
-              autoFocus
-              value={draftName}
-              onChange={(e) => setDraftName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleSaveName(); }}
-              placeholder="Enter username"
-              maxLength={20}
-              className="flex-1 min-w-0 px-2 py-1 rounded bg-white text-blue-900 placeholder:text-blue-400 border border-blue-300 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-white"
-            />
-            <button
-              onClick={handleSaveName}
-              className="px-3 py-1 rounded bg-white text-blue-700 font-mono text-xs font-bold hover:bg-blue-50"
-            >
-              Save
-            </button>
-          </>
-        )}
-      </div>
-      <LobbyScreen onEnter={() => setShowSettings(true)} />
-    </>
-  );
+  if (!gameState) {
+    if (showTutorial) return <TutorialScreen onBack={() => setShowTutorial(false)} />;
+    return (
+      <>
+        <div className="fixed top-3 left-3 z-[60] flex items-center gap-2 p-2 rounded-lg bg-blue-600/90 border border-blue-400 backdrop-blur-sm max-w-[280px] shadow-lg shadow-blue-900/40">
+          {!editing ? (
+            <>
+              <span className="font-mono text-xs text-white px-1">
+                Welcome, {username}!{saved && <span className="text-white/80 ml-1">✓</span>}
+              </span>
+              <button
+                onClick={() => { setDraftName(username); setEditing(true); }}
+                aria-label="Edit username"
+                title="Edit name"
+                className="w-6 h-6 flex items-center justify-center rounded border border-white/60 text-white text-xs hover:bg-white/20"
+              >
+                ✎
+              </button>
+            </>
+          ) : (
+            <>
+              <input
+                autoFocus
+                value={draftName}
+                onChange={(e) => setDraftName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleSaveName(); }}
+                placeholder="Enter username"
+                maxLength={20}
+                className="flex-1 min-w-0 px-2 py-1 rounded bg-white text-blue-900 placeholder:text-blue-400 border border-blue-300 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-white"
+              />
+              <button
+                onClick={handleSaveName}
+                className="px-3 py-1 rounded bg-white text-blue-700 font-mono text-xs font-bold hover:bg-blue-50"
+              >
+                Save
+              </button>
+            </>
+          )}
+        </div>
+        <LobbyScreen
+          onEnter={() => setShowSettings(true)}
+          onTutorial={() => setShowTutorial(true)}
+        />
+      </>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-background overflow-hidden">

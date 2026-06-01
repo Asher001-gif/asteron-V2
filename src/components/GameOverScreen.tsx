@@ -17,7 +17,7 @@ export default function GameOverScreen({ state, onRestart }: Props) {
         </h1>
         <p className="text-muted-foreground font-mono">
           {isCrewWin
-            ? 'All tasks completed! Mars base is operational!'
+            ? 'All tasks completed! Asteron base is operational!'
             : 'The traitors eliminated all crewmates...'}
         </p>
         <div className="text-sm text-muted-foreground font-mono">
