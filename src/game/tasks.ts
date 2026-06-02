@@ -1,4 +1,4 @@
-import { TaskChallenge, TaskStation, TaskType, TOTAL_TASKS, MAP_WIDTH, MAP_HEIGHT } from './types';
+import { TaskChallenge, TaskStation, TaskType, TOTAL_TASKS, MAP_WIDTH, MAP_HEIGHT, TeamIndex } from './types';
 
 const TASK_LABELS: Record<TaskType, string> = {
   frequency: '📻 Frequency',
@@ -14,7 +14,7 @@ const TASK_LABELS: Record<TaskType, string> = {
   door: '🚪 Door',
 };
 
-export function createTaskStations(count: number = TOTAL_TASKS): TaskStation[] {
+export function createTaskStations(count: number = TOTAL_TASKS, team: TeamIndex = 0, idOffset: number = 0): TaskStation[] {
   const positions = [
     // Research room
     { x: 680, y: 150 }, { x: 850, y: 200 }, { x: 950, y: 120 },
@@ -44,12 +44,13 @@ export function createTaskStations(count: number = TOTAL_TASKS): TaskStation[] {
     }
     const type = types[i % types.length];
     stations.push({
-      id: i,
-      x: pos.x,
+      id: idOffset + i,
+      x: pos.x + (team === 1 ? 35 : team === 2 ? -35 : 0),
       y: pos.y,
       label: TASK_LABELS[type],
       taskType: type,
       completed: false,
+      team,
     });
   }
   return stations;

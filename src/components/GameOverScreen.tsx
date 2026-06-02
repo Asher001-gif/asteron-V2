@@ -1,4 +1,4 @@
-import { GameState } from '@/game/types';
+import { GameState, TEAM_COLORS, TEAM_NAMES, TeamIndex } from '@/game/types';
 
 interface Props {
   state: GameState;
@@ -6,23 +6,33 @@ interface Props {
 }
 
 export default function GameOverScreen({ state, onRestart }: Props) {
-  const isCrewWin = state.winner === 'crew';
+  const winner = state.winner as TeamIndex | null;
+  const team = winner ?? 0;
+  const color = winner !== null ? TEAM_COLORS[team] : '#888';
+  const teamName = winner !== null ? TEAM_NAMES[team] : '—';
+  const ability = winner !== null ? state.teamAbilities[team] : '';
+  const objectiveText: Record<string, string> = {
+    crew: 'Completed all assigned tasks!',
+    kill: 'Eliminated every enemy player!',
+    shooter: 'Shot down every enemy player!',
+    jail: 'All enemies are jailed or down!',
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/90 backdrop-blur-sm">
       <div className="text-center space-y-6 p-8 rounded-xl border border-border bg-card shadow-2xl max-w-md">
-        <h1 className="text-4xl font-bold font-mono tracking-wider"
-          style={{ color: isCrewWin ? '#3dba6f' : '#e03030' }}>
-          {isCrewWin ? '🛡️ CREW WINS!' : '☠️ TRAITORS WIN!'}
+        <h1 className="text-4xl font-bold font-mono tracking-wider" style={{ color }}>
+          🏆 {teamName} TEAM WINS!
         </h1>
+        <p className="text-muted-foreground font-mono uppercase text-xs tracking-widest">
+          Ability: {ability}
+        </p>
         <p className="text-muted-foreground font-mono">
-          {isCrewWin
-            ? 'All tasks completed! Asteron base is operational!'
-            : 'The traitors eliminated all crewmates...'}
+          {objectiveText[ability] || 'Objective achieved.'}
         </p>
         <div className="text-sm text-muted-foreground font-mono">
           Time: {Math.floor(state.timeElapsed / 1000)}s |
-          Survivors: {state.players.filter(p => p.alive).length}/10
+          Survivors: {state.players.filter(p => p.alive).length}/{state.players.length}
         </div>
         <button
           onClick={onRestart}

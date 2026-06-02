@@ -1,5 +1,5 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
-import { GameState, KILL_RANGE, ARREST_RANGE, MAX_JAILED, DOOR_USE_COOLDOWN } from '@/game/types';
+import { GameState, KILL_RANGE, ARREST_RANGE, DOOR_USE_COOLDOWN } from '@/game/types';
 import { updateGame, humanKill, humanArrest, getNearbyTask, getNearbyDoor, toggleDoor } from '@/game/engine';
 import { generateTaskChallenge } from '@/game/tasks';
 import { renderGame } from '@/game/renderer';
@@ -81,8 +81,9 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
         e.preventDefault();
         const now = performance.now();
         const s = stateRef.current;
-        if (s.players[0].role === 'imposter') humanKill(s, now);
-        else if (s.players[0].role === 'protector') humanArrest(s, now);
+          const ab = s.players[0].ability;
+          if (ab === 'kill' || ab === 'shooter') humanKill(s, now);
+          else if (ab === 'jail') humanArrest(s, now);
         else {
           const taskId = getNearbyTask(s);
           if (taskId !== null) {
@@ -231,11 +232,12 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
   const handleMobileAction = useCallback(() => {
     const s = stateRef.current;
     const now = performance.now();
-    if (s.players[0].role === 'imposter') {
+      const ab = s.players[0].ability;
+      if (ab === 'kill' || ab === 'shooter') {
       humanKill(s, now);
-    } else if (s.players[0].role === 'protector') {
+      } else if (ab === 'jail') {
       humanArrest(s, now);
-    } else if (s.players[0].role === 'crewmate') {
+      } else if (ab === 'crew') {
       // Door has priority
       const doorId = getNearbyDoor(s);
       if (doorId !== null) {
@@ -270,15 +272,16 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
   const human = gameState.players[0];
   let actionLabel = '';
   let canAction = false;
-  if (human.role === 'imposter') {
-    actionLabel = 'KILL';
+  const hAb = human.ability;
+  if (hAb === 'kill' || hAb === 'shooter') {
+    actionLabel = hAb === 'shooter' ? 'SHOOT' : 'KILL';
+    const range = hAb === 'shooter' ? KILL_RANGE * 2.4 : KILL_RANGE;
     canAction = human.alive && !human.jailed && human.killCooldown <= 0 &&
-      gameState.players.some(p => p.alive && p.id !== 0 && p.role === 'crewmate' && dist(human, p) < KILL_RANGE);
-  } else if (human.role === 'protector') {
+      gameState.players.some(p => p.alive && p.id !== 0 && p.team !== human.team && dist(human, p) < range);
+  } else if (hAb === 'jail') {
     actionLabel = 'ARREST';
-    const jailedCount = gameState.players.filter(p => p.jailed).length;
-    canAction = human.alive && !human.jailed && human.arrestCooldown <= 0 && jailedCount < MAX_JAILED &&
-      gameState.players.some(p => p.alive && p.id !== 0 && !p.jailed && p.role !== 'protector' && dist(human, p) < ARREST_RANGE);
+    canAction = human.alive && !human.jailed && human.arrestCooldown <= 0 &&
+      gameState.players.some(p => p.alive && p.id !== 0 && !p.jailed && p.team !== human.team && dist(human, p) < ARREST_RANGE);
   } else {
     const doorId = getNearbyDoor(gameState);
     if (doorId !== null) {
@@ -303,8 +306,9 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
           if (isMobile) return;
           const s = stateRef.current;
           const now = performance.now();
-          if (s.players[0].role === 'imposter') humanKill(s, now);
-          else if (s.players[0].role === 'protector') humanArrest(s, now);
+          const ab = s.players[0].ability;
+          if (ab === 'kill' || ab === 'shooter') humanKill(s, now);
+          else if (ab === 'jail') humanArrest(s, now);
         }}
       />
       {showTask && gameState.activeTask && (
@@ -317,6 +321,8 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
       {isMobile && !showTask && gameState.phase === 'playing' && (
         <MobileControls
           role={human.role}
+          ability={human.ability}
+          team={human.team}
           canAction={canAction}
           actionLabel={actionLabel}
           onMove={handleMobileMove}

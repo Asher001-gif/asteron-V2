@@ -1,4 +1,4 @@
-import { GameState, Player, PLAYER_RADIUS, TASK_RANGE, FreezeProjectile, JAIL_RECT, JAIL_DURATION, DOOR_INTERACT_RANGE } from './types';
+import { GameState, Player, PLAYER_RADIUS, TASK_RANGE, FreezeProjectile, JAIL_RECT, JAIL_DURATION, DOOR_INTERACT_RANGE, TEAM_COLORS, TEAM_NAMES, TeamIndex } from './types';
 import { ROOM_WALLS, OBSTACLES, ROOMS } from './collision';
 import crewA from '@/assets/char-crew-a.png';
 import crewB from '@/assets/char-crew-b.png';
@@ -26,11 +26,12 @@ const FACING: Map<number, number> = new Map();
 const FROZEN_COLOR = '#40d8f0';
 let animTime = 0;
 
-// Vision radii per role
+// Vision radii per ability
 const VISION_RADIUS: Record<string, number> = {
-  crewmate: 220,
-  protector: 170,
-  imposter: 120,
+  crew: 220,
+  jail: 180,
+  kill: 130,
+  shooter: 220,
 };
 
 export function renderGame(
@@ -86,7 +87,7 @@ export function renderGame(
   ctx.restore();
 
   // Draw fog of war overlay
-  const visionR = VISION_RADIUS[human.role] || 270;
+  const visionR = VISION_RADIUS[human.ability] || 220;
   const screenX = human.x - camX;
   const screenY = human.y - camY;
 
@@ -480,10 +481,15 @@ function drawTaskStations(ctx: CanvasRenderingContext2D, state: GameState) {
     ctx.font = 'bold 9px monospace';
     ctx.fillText(completed ? 'DONE' : station.label, station.x, station.y + 22);
 
-    if (nearby && human.role === 'crewmate' && human.alive && !human.frozen && !human.doingTask) {
+    // Show team tag on station
+    ctx.fillStyle = TEAM_COLORS[station.team];
+    ctx.font = 'bold 9px monospace';
+    ctx.fillText(`▣ ${TEAM_NAMES[station.team]}`, station.x, station.y - 30);
+
+    if (nearby && human.ability === 'crew' && station.team === human.team && human.alive && !human.frozen && !human.doingTask) {
       ctx.fillStyle = '#ffd700';
       ctx.font = 'bold 11px monospace';
-      ctx.fillText('[SPACE] USE', station.x, station.y - 30);
+      ctx.fillText('[SPACE] USE', station.x, station.y - 42);
     }
 
     const aiWorker = state.players.find(p => p.doingTask && p.taskStationId === station.id && !p.isHuman);
@@ -571,15 +577,30 @@ function drawPlayer(ctx: CanvasRenderingContext2D, p: Player, human: Player) {
   }
   ctx.restore();
 
-  ctx.fillStyle = '#ddd';
-  ctx.font = 'bold 11px monospace';
+  // Team color banner above head (always visible — factions are public)
+  const teamColor = TEAM_COLORS[p.team];
+  const teamName = TEAM_NAMES[p.team];
+  const bannerW = 52, bannerH = 12;
+  const bannerY = y - 46 * s;
+  ctx.fillStyle = teamColor;
+  ctx.fillRect(x - bannerW / 2, bannerY, bannerW, bannerH);
+  ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x - bannerW / 2, bannerY, bannerW, bannerH);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 9px monospace';
   ctx.textAlign = 'center';
+  ctx.fillText(teamName, x, bannerY + 9);
+
+  // Name (white)
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 11px monospace';
   ctx.fillText(p.name, x, y - 32 * s);
 
   if (p.isHuman) {
     ctx.fillStyle = '#ffd700';
     ctx.font = 'bold 10px monospace';
-    ctx.fillText('▼ YOU', x, y - 40 * s);
+    ctx.fillText('▼ YOU', bannerY === 0 ? x : x, y - 58 * s);
   }
 }
 
@@ -983,8 +1004,6 @@ function drawDeadPlayer(ctx: CanvasRenderingContext2D, p: Player) {
 
 function drawHUD(ctx: CanvasRenderingContext2D, state: GameState, w: number, h: number) {
   const human = state.players[0];
-  const aliveCrew = state.players.filter(p => p.alive && p.role === 'crewmate').length;
-  const aliveImposters = state.players.filter(p => p.alive && p.role === 'imposter').length;
 
   ctx.fillStyle = 'rgba(10, 5, 3, 0.85)';
   ctx.fillRect(0, 0, w, 55);
@@ -992,28 +1011,57 @@ function drawHUD(ctx: CanvasRenderingContext2D, state: GameState, w: number, h: 
   ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(0, 55); ctx.lineTo(w, 55); ctx.stroke();
 
-  ctx.fillStyle = '#cc8860';
-  ctx.font = 'bold 14px monospace';
-  ctx.textAlign = 'left';
-  const roleDisplay = human.role === 'imposter' ? 'TRAITOR' : human.role.toUpperCase();
-  ctx.fillText(`Role: ${roleDisplay}`, 15, 20);
-  ctx.fillText(`Crew: ${aliveCrew} | Traitors: ${aliveImposters}`, 15, 40);
-
-  const barW = 200;
-  const barH = 14;
-  const barX = w / 2 - barW / 2;
-  const barY = 8;
-  ctx.fillStyle = 'rgba(40, 20, 10, 0.8)';
-  ctx.fillRect(barX, barY, barW, barH);
-  ctx.fillStyle = '#3dba6f';
-  ctx.fillRect(barX, barY, barW * (state.tasksCompleted / state.totalTasks), barH);
-  ctx.strokeStyle = '#8b4513';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(barX, barY, barW, barH);
+  // Your team chip
+  const myColor = TEAM_COLORS[human.team];
+  ctx.fillStyle = myColor;
+  ctx.fillRect(10, 8, 14, 14);
   ctx.fillStyle = '#fff';
-  ctx.font = 'bold 10px monospace';
-  ctx.textAlign = 'center';
-  ctx.fillText(`TASKS: ${state.tasksCompleted}/${state.totalTasks}`, w / 2, barY + 11);
+  ctx.font = 'bold 13px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(`TEAM ${TEAM_NAMES[human.team]} · ${human.ability.toUpperCase()}`, 30, 20);
+
+  // Faction roster line
+  ctx.font = 'bold 11px monospace';
+  let xCursor = 10;
+  for (let t = 0; t < 3; t++) {
+    if (state.teamCounts[t] === 0) continue;
+    const ti = t as TeamIndex;
+    const alive = state.players.filter(p => p.team === ti && p.alive && !p.jailed).length;
+    const jailed = state.players.filter(p => p.team === ti && p.jailed).length;
+    ctx.fillStyle = TEAM_COLORS[ti];
+    ctx.fillRect(xCursor, 32, 10, 10);
+    ctx.fillStyle = '#ddd';
+    const chip = `${TEAM_NAMES[ti]} ${alive}♦${jailed > 0 ? ` ⛓${jailed}` : ''}`;
+    ctx.fillText(chip, xCursor + 14, 41);
+    xCursor += ctx.measureText(chip).width + 30;
+  }
+
+  // Center: tasks progress per crew team (stacked compact)
+  const crewTeams: TeamIndex[] = [];
+  for (let t = 0; t < 3; t++) {
+    if (state.teamAbilities[t] === 'crew' && state.teamCounts[t] > 0) crewTeams.push(t as TeamIndex);
+  }
+  if (crewTeams.length > 0) {
+    const barW = 180, barH = 10;
+    const cx = w / 2;
+    crewTeams.forEach((t, i) => {
+      const own = state.taskStations.filter(s => s.team === t);
+      const done = own.filter(s => s.completed).length;
+      const total = own.length || 1;
+      const by = 6 + i * 14;
+      ctx.fillStyle = 'rgba(40, 20, 10, 0.8)';
+      ctx.fillRect(cx - barW / 2, by, barW, barH);
+      ctx.fillStyle = TEAM_COLORS[t];
+      ctx.fillRect(cx - barW / 2, by, barW * (done / total), barH);
+      ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(cx - barW / 2, by, barW, barH);
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 9px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(`${TEAM_NAMES[t]} TASKS ${done}/${total}`, cx, by + 8);
+    });
+  }
 
   const time = Math.floor(state.timeElapsed / 1000);
   ctx.textAlign = 'right';
@@ -1023,26 +1071,29 @@ function drawHUD(ctx: CanvasRenderingContext2D, state: GameState, w: number, h: 
 
   if (!human.alive) {
     ctx.fillStyle = '#ff3333';
+    ctx.textAlign = 'right';
     ctx.fillText('☠ DEAD - Spectating', w - 15, 40);
   } else if (human.jailed) {
     const remaining = Math.max(0, Math.ceil((human.jailedUntil - performance.now()) / 1000));
     ctx.fillStyle = '#ffaa33';
+    ctx.textAlign = 'right';
     ctx.fillText(`⛓ JAILED ${remaining}s`, w - 15, 40);
   }
 
   if (human.alive && !human.jailed) {
     ctx.textAlign = 'center';
-    if (human.role === 'imposter') {
+    if (human.ability === 'kill' || human.ability === 'shooter') {
       const ready = human.killCooldown <= 0;
       ctx.fillStyle = ready ? '#ff4444' : '#664444';
-      ctx.fillText(ready ? '[SPACE] KILL' : `Kill: ${Math.ceil(human.killCooldown / 1000)}s`, w / 2, 48);
-    } else if (human.role === 'protector') {
+      const lbl = human.ability === 'shooter' ? 'SHOOT' : 'KILL';
+      ctx.fillText(ready ? `[SPACE] ${lbl}` : `${lbl}: ${Math.ceil(human.killCooldown / 1000)}s`, w / 2, 48);
+    } else if (human.ability === 'jail') {
       const ready = human.arrestCooldown <= 0;
       ctx.fillStyle = ready ? '#3dba6f' : '#446644';
       ctx.fillText(ready ? '[SPACE] ARREST' : `Arrest: ${Math.ceil(human.arrestCooldown / 1000)}s`, w / 2, 48);
     } else {
       ctx.fillStyle = '#888';
-      ctx.fillText('[SPACE/E] Do Tasks | Stay Alive!', w / 2, 48);
+      ctx.fillText('[SPACE/E] Do Your Team Tasks', w / 2, 48);
     }
   }
 

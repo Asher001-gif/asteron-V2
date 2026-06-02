@@ -2,9 +2,9 @@ import {
   Player, GameState, Role,
   PLAYER_RADIUS, KILL_RANGE,
   KILL_COOLDOWN, MAP_WIDTH, MAP_HEIGHT, TASK_RANGE, TOTAL_TASKS,
-  ARREST_RANGE, ARREST_COOLDOWN, JAIL_DURATION, MAX_JAILED, JAIL_RECT, JAIL_RELEASE,
+  ARREST_RANGE, ARREST_COOLDOWN, JAIL_DURATION, JAIL_RECT, JAIL_RELEASE,
   DOOR_INTERACT_RANGE, DOOR_USE_COOLDOWN,
-  GameSettings, DEFAULT_SETTINGS, Ability
+  GameSettings, DEFAULT_SETTINGS, Ability, TeamIndex
 } from './types';
 import { createTaskStations } from './tasks';
 import { resolveCollisions, hasLineOfSight, createDoors } from './collision';
@@ -25,11 +25,26 @@ const MAX_CONCURRENT_BOT_ACTIONS = 3;
 let _lastBotActionAt = 0;
 let _nextBotActionGap = 600;
 
-const BOT_VISION: Record<Role, number> = {
-  crewmate: 220,
-  protector: 170,
-  imposter: 120,
+const BOT_VISION: Record<Ability, number> = {
+  crew: 220,
+  jail: 180,
+  kill: 130,
+  shooter: 220,
 };
+
+const ABILITY_SPEED: Record<Ability, number> = {
+  crew: 3.3,
+  jail: 3.4,
+  kill: 3.6,
+  shooter: 3.4,
+};
+
+function rangeForAbility(ab: Ability): number {
+  if (ab === 'shooter') return KILL_RANGE * 2.4;
+  if (ab === 'kill') return KILL_RANGE;
+  if (ab === 'jail') return ARREST_RANGE;
+  return 0;
+}
 
 function dist(a: { x: number; y: number }, b: { x: number; y: number }) {
   return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
@@ -59,20 +74,24 @@ function jailDurationFromSetting(opt: GameSettings['jailTimer']): number {
 }
 
 export function createGame(settings: GameSettings = DEFAULT_SETTINGS, playerName?: string): GameState {
-  // Build role list from ability counts
-  const roles: Role[] = [];
+  // Build (team, ability) list from settings
+  type Slot = { team: TeamIndex; ability: Ability };
+  const slots: Slot[] = [];
   for (let i = 0; i < 3; i++) {
-    const r = ABILITY_TO_ROLE[settings.roleAbilities[i]];
-    for (let k = 0; k < settings.roleCounts[i]; k++) roles.push(r);
+    const ab = settings.roleAbilities[i];
+    for (let k = 0; k < settings.roleCounts[i]; k++) {
+      slots.push({ team: i as TeamIndex, ability: ab });
+    }
   }
-  // Trim/pad to playerCount (safety)
-  while (roles.length < settings.playerCount) roles.push('crewmate');
-  roles.length = settings.playerCount;
-
-  // Shuffle, then ensure index 0 (human) is randomly assigned
-  for (let i = roles.length - 1; i > 0; i--) {
+  // Pad/trim to playerCount (safety) — pad with team 0 / crew
+  while (slots.length < settings.playerCount) {
+    slots.push({ team: 0, ability: settings.roleAbilities[0] });
+  }
+  slots.length = settings.playerCount;
+  // Shuffle so the human (index 0) is randomly assigned
+  for (let i = slots.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [roles[i], roles[j]] = [roles[j], roles[i]];
+    [slots[i], slots[j]] = [slots[j], slots[i]];
   }
 
   const speedMult = SPEED_MULT[settings.speed];
@@ -80,17 +99,19 @@ export function createGame(settings: GameSettings = DEFAULT_SETTINGS, playerName
   // Pick 9 random unique names for bots (player 0 is human, named "You")
   const shuffledNames = [...BOT_NAMES].sort(() => Math.random() - 0.5);
   const humanName = (playerName && playerName.trim()) || 'Astro';
-  const players: Player[] = roles.map((role, i) => ({
+  const players: Player[] = slots.map((slot, i) => ({
     id: i,
     x: 200 + Math.random() * (MAP_WIDTH - 400),
     y: 200 + Math.random() * (MAP_HEIGHT - 400),
-    role,
+    role: ABILITY_TO_ROLE[slot.ability],
+    ability: slot.ability,
+    team: slot.team,
     alive: true,
     frozen: false,
     frozenUntil: 0,
     name: i === 0 ? humanName : shuffledNames[(i - 1) % shuffledNames.length],
     isHuman: i === 0,
-    speed: (role === 'imposter' ? 3.6 : 3.3) * speedMult,
+    speed: ABILITY_SPEED[slot.ability] * speedMult,
     direction: { x: 0, y: 0 },
     aiTargetX: MAP_WIDTH / 2,
     aiTargetY: MAP_HEIGHT / 2,
@@ -118,6 +139,17 @@ export function createGame(settings: GameSettings = DEFAULT_SETTINGS, playerName
     }
   }
 
+  // Generate task stations per crew-faction
+  const stations = [];
+  let nextId = 0;
+  for (let t = 0; t < 3; t++) {
+    if (settings.roleAbilities[t] === 'crew' && settings.roleCounts[t] > 0) {
+      const subset = createTaskStations(settings.tasks, t as TeamIndex, nextId);
+      nextId += subset.length;
+      stations.push(...subset);
+    }
+  }
+
   return {
     players,
     phase: 'playing',
@@ -125,20 +157,22 @@ export function createGame(settings: GameSettings = DEFAULT_SETTINGS, playerName
     timeElapsed: 0,
     mapWidth: MAP_WIDTH,
     mapHeight: MAP_HEIGHT,
-    taskStations: createTaskStations(settings.tasks),
+    taskStations: stations,
     tasksCompleted: 0,
-    totalTasks: settings.tasks,
+    totalTasks: stations.length,
     activeTask: null,
     projectiles: [],
     recentArrest: null,
     doors: createDoors(),
     jailDuration: jailDurationFromSetting(settings.jailTimer),
     settings,
+    teamAbilities: [...settings.roleAbilities] as [Ability, Ability, Ability],
+    teamCounts: [...settings.roleCounts] as [number, number, number],
   };
 }
 
 function getVisiblePlayers(player: Player, allPlayers: Player[], state: GameState): Player[] {
-  const vision = BOT_VISION[player.role];
+  const vision = BOT_VISION[player.ability];
   return allPlayers.filter(p =>
     p.id !== player.id && p.alive && !p.jailed &&
     dist(player, p) <= vision &&
@@ -163,31 +197,33 @@ function updateAI(player: Player, allPlayers: Player[], state: GameState, now: n
   if (player.jailed) { jailWander(player, now); return; }
 
   const visible = getVisiblePlayers(player, allPlayers, state);
-
-  if (player.role === 'imposter') aiImposterBehavior(player, visible, now);
-  else if (player.role === 'protector') aiProtectorBehavior(player, visible, allPlayers, now);
-  else aiCrewmateBehavior(player, visible, state, now);
+  if (player.ability === 'kill' || player.ability === 'shooter') {
+    aiHunterBehavior(player, visible, now);
+  } else if (player.ability === 'jail') {
+    aiJailerBehavior(player, visible, allPlayers, now);
+  } else {
+    aiCrewBehavior(player, visible, state, now);
+  }
 }
 
 const ROOM_CENTERS = [
   { x: 800, y: 190 }, { x: 215, y: 625 }, { x: 1385, y: 625 },
 ];
 
-function aiImposterBehavior(player: Player, visible: Player[], now: number) {
-  const visibleCrew = visible.filter(p => p.role === 'crewmate');
-  const visibleProtectors = visible.filter(p => p.role === 'protector');
-
-  const nearbyProtector = visibleProtectors.find(p => dist(player, p) < 180);
-  if (nearbyProtector && Math.random() < 0.7) {
+function aiHunterBehavior(player: Player, visible: Player[], now: number) {
+  // Chase any enemy (different team)
+  const enemies = visible.filter(p => p.team !== player.team);
+  // Avoid nearby enemy jailers when there's no kill opportunity yet
+  const nearbyJailer = enemies.find(p => p.ability === 'jail' && dist(player, p) < 160);
+  if (nearbyJailer && Math.random() < 0.6) {
     const dir = getNavigationDirection(player.x, player.y,
-      player.x + (player.x - nearbyProtector.x),
-      player.y + (player.y - nearbyProtector.y));
+      player.x + (player.x - nearbyJailer.x),
+      player.y + (player.y - nearbyJailer.y));
     player.direction = dir;
     return;
   }
-
-  if (visibleCrew.length > 0) {
-    const nearest = visibleCrew.reduce((a, b) => dist(player, a) < dist(player, b) ? a : b);
+  if (enemies.length > 0) {
+    const nearest = enemies.reduce((a, b) => dist(player, a) < dist(player, b) ? a : b);
     player.direction = getNavigationDirection(player.x, player.y, nearest.x, nearest.y);
     return;
   }
@@ -209,17 +245,16 @@ function aiImposterBehavior(player: Player, visible: Player[], now: number) {
   player.direction = getNavigationDirection(player.x, player.y, player.aiTargetX, player.aiTargetY);
 }
 
-function aiProtectorBehavior(player: Player, visible: Player[], allPlayers: Player[], now: number) {
-  // Protectors patrol and approach any non-protector to potentially arrest.
-  const otherProtector = allPlayers.find(p => p.id !== player.id && p.role === 'protector' && p.alive && !p.jailed);
-  const suspects = visible.filter(p => p.role !== 'protector');
-
+function aiJailerBehavior(player: Player, visible: Player[], allPlayers: Player[], now: number) {
+  // Jailers patrol and chase enemy (different team) players to arrest.
+  const otherJailer = allPlayers.find(p => p.id !== player.id && p.team === player.team && p.alive && !p.jailed);
+  const suspects = visible.filter(p => p.team !== player.team);
   if (suspects.length > 0) {
     const target = suspects.reduce((a, b) => dist(player, a) < dist(player, b) ? a : b);
     player.direction = getNavigationDirection(player.x, player.y, target.x, target.y);
     return;
   }
-  patrolAI(player, otherProtector, now);
+  patrolAI(player, otherJailer, now);
 }
 
 function patrolAI(player: Player, otherProtector: Player | undefined, now: number) {
@@ -236,14 +271,23 @@ function patrolAI(player: Player, otherProtector: Player | undefined, now: numbe
   player.direction = getNavigationDirection(player.x, player.y, player.aiTargetX, player.aiTargetY);
 }
 
-function aiCrewmateBehavior(player: Player, visible: Player[], state: GameState, now: number) {
-  // Crew bots do NOT know who is an imposter — they just focus on tasks.
+function aiCrewBehavior(player: Player, visible: Player[], state: GameState, now: number) {
+  // Crew bots focus on their own team's tasks.
   if (player.doingTask) { player.direction = { x: 0, y: 0 }; return; }
 
-  const vision = BOT_VISION[player.role];
-  const nearbyTasks = state.taskStations.filter(t => !t.completed && dist(player, t) <= vision);
+  const vision = BOT_VISION[player.ability];
+  const nearbyTasks = state.taskStations.filter(t => !t.completed && t.team === player.team && dist(player, t) <= vision);
   if (nearbyTasks.length > 0) {
     const closest = nearbyTasks.reduce((a, b) => dist(player, a) < dist(player, b) ? a : b);
+    player.direction = getNavigationDirection(player.x, player.y, closest.x, closest.y);
+    return;
+  }
+  // If no nearby tasks, head to any uncompleted own-team task
+  const ownTasks = state.taskStations.filter(t => !t.completed && t.team === player.team);
+  if (ownTasks.length > 0) {
+    const closest = ownTasks.reduce((a, b) => dist(player, a) < dist(player, b) ? a : b);
+    player.aiTargetX = closest.x;
+    player.aiTargetY = closest.y;
     player.direction = getNavigationDirection(player.x, player.y, closest.x, closest.y);
     return;
   }
@@ -285,23 +329,22 @@ function performAIActions(player: Player, allPlayers: Player[], state: GameState
 
   const visible = getVisiblePlayers(player, allPlayers, state);
 
-  // Bots have a 30-40% chance to "do nothing" for a window after each opportunity.
   if (now < player.actionSkipUntil) {
-    // still tick task logic for crewmates below
-  } else if (player.role === 'imposter' && player.killCooldown <= 0) {
+    // skip planning this tick but still tick crew task logic below
+  } else if ((player.ability === 'kill' || player.ability === 'shooter') && player.killCooldown <= 0) {
+    const range = rangeForAbility(player.ability);
     const candidates = visible.filter(p =>
-      p.role === 'crewmate' && dist(player, p) < KILL_RANGE &&
+      p.team !== player.team && dist(player, p) < range &&
       hasLineOfSight(player.x, player.y, p.x, p.y, state.doors)
     );
     if (candidates.length > 0) {
       const target = candidates[0];
-      // Only kill if target is alone and no protector is nearby
-      const protectorNear = allPlayers.some(p =>
-        p.alive && !p.jailed && p.role === 'protector' &&
-        dist(player, p) < 220 && hasLineOfSight(player.x, player.y, p.x, p.y, state.doors)
+      // Be cautious if an enemy jailer is nearby
+      const jailerNear = allPlayers.some(p =>
+        p.alive && !p.jailed && p.team !== player.team && p.ability === 'jail' &&
+        dist(player, p) < 200 && hasLineOfSight(player.x, player.y, p.x, p.y, state.doors)
       );
-      const otherCrewNear = visible.some(p => p.id !== target.id && p.role !== 'imposter' && dist(target, p) < 130);
-      if (!protectorNear && !otherCrewNear) {
+      if (!jailerNear) {
         if (player.actionPlanTargetId !== target.id) {
           player.actionPlanTargetId = target.id;
           player.actionPlanAt = now + 1000 + Math.random() * 2000; // 1-3s
@@ -321,20 +364,19 @@ function performAIActions(player: Player, allPlayers: Player[], state: GameState
     }
   }
 
-  if (player.role === 'protector' && player.arrestCooldown <= 0 && now >= player.actionSkipUntil) {
+  if (player.ability === 'jail' && player.arrestCooldown <= 0 && now >= player.actionSkipUntil) {
     if (state.jailDuration <= 0) return;
     const candidates = visible.filter(p =>
-      !p.jailed && p.role !== 'protector' && dist(player, p) < ARREST_RANGE &&
+      !p.jailed && p.team !== player.team && dist(player, p) < ARREST_RANGE &&
       hasLineOfSight(player.x, player.y, p.x, p.y, state.doors)
     );
-    const jailedCount = allPlayers.filter(p => p.jailed).length;
-    if (candidates.length > 0 && jailedCount < MAX_JAILED) {
+    if (candidates.length > 0) {
       // Decision: stronger urge if a kill happened recently nearby
       const target = candidates.reduce((a, b) => dist(player, a) < dist(player, b) ? a : b);
       const sawKill = allPlayers.some(p =>
         !p.alive && dist(player, p) < 250 && hasLineOfSight(player.x, player.y, p.x, p.y, state.doors)
       );
-      const chance = sawKill ? 0.85 : 0.25;
+      const chance = sawKill ? 0.9 : 0.6;
       if (player.actionPlanTargetId !== target.id) {
         player.actionPlanTargetId = target.id;
         // 1-2s ponder
@@ -353,8 +395,8 @@ function performAIActions(player: Player, allPlayers: Player[], state: GameState
     }
   }
 
-  if (player.role === 'crewmate' && !player.doingTask) {
-    const incompleteTasks = state.taskStations.filter(t => !t.completed);
+  if (player.ability === 'crew' && !player.doingTask) {
+    const incompleteTasks = state.taskStations.filter(t => !t.completed && t.team === player.team);
     const nearTask = incompleteTasks.find(t => dist(player, t) < TASK_RANGE);
     if (nearTask) {
       player.doingTask = true;
@@ -400,7 +442,7 @@ export function updateGame(state: GameState, dt: number, keys: Set<string>, now:
       p.taskProgress += dt / 5000;
       if (p.taskProgress >= 1) {
         const station = state.taskStations.find(t => t.id === p.taskStationId);
-        if (station && !station.completed) {
+        if (station && !station.completed && station.team === p.team) {
           station.completed = true;
           state.tasksCompleted++;
         }
@@ -429,7 +471,7 @@ export function updateGame(state: GameState, dt: number, keys: Set<string>, now:
 
     if (!p.isHuman && p.doorBusyUntil === 0) {
       // Check if there's a closed door right in front to interact with
-      if (p.role !== 'protector') {
+      if (p.ability !== 'jail') {
         const door = state.doors.find(d =>
           !d.open && Math.hypot(d.cx - p.x, d.cy - p.y) < 50
         );
@@ -481,27 +523,57 @@ export function updateGame(state: GameState, dt: number, keys: Set<string>, now:
 
   state.projectiles = state.projectiles.filter(p => now - p.startTime < p.duration);
 
-  if (state.tasksCompleted >= state.totalTasks) {
-    return { ...state, phase: 'gameover', winner: 'crew', timeElapsed: state.timeElapsed + dt };
-  }
-  const aliveCrew = state.players.filter(p => p.alive && p.role === 'crewmate').length;
-  if (aliveCrew === 0) {
-    return { ...state, phase: 'gameover', winner: 'imposters', timeElapsed: state.timeElapsed + dt };
+  // Dynamic per-team win conditions
+  const winner = computeWinner(state);
+  if (winner !== null) {
+    return { ...state, phase: 'gameover', winner, timeElapsed: state.timeElapsed + dt };
   }
   return { ...state, timeElapsed: state.timeElapsed + dt };
 }
 
+function computeWinner(state: GameState): TeamIndex | null {
+  const activeTeams: TeamIndex[] = [];
+  for (let i = 0; i < 3; i++) {
+    if (state.teamCounts[i] > 0) activeTeams.push(i as TeamIndex);
+  }
+  // If only one team has any presence (alive or jailed), it wins by default
+  const teamsWithStanding = activeTeams.filter(t =>
+    state.players.some(p => p.team === t && (p.alive || p.jailed))
+  );
+  if (activeTeams.length > 1 && teamsWithStanding.length === 1) {
+    return teamsWithStanding[0];
+  }
+  for (const t of activeTeams) {
+    const ab = state.teamAbilities[t];
+    if (ab === 'crew') {
+      const own = state.taskStations.filter(s => s.team === t);
+      if (own.length > 0 && own.every(s => s.completed)) return t;
+    } else if (ab === 'kill' || ab === 'shooter') {
+      const enemiesAlive = state.players.some(p => p.team !== t && p.alive);
+      if (!enemiesAlive) return t;
+    } else if (ab === 'jail') {
+      // Win when every enemy is either dead or currently jailed
+      const enemiesFree = state.players.some(p => p.team !== t && p.alive && !p.jailed);
+      if (!enemiesFree) return t;
+    }
+  }
+  return null;
+}
+
 export function humanKill(state: GameState, now: number): boolean {
   const human = state.players[0];
-  if (!human.alive || human.jailed || human.role !== 'imposter' || human.killCooldown > 0) return false;
+  if (!human.alive || human.jailed || human.killCooldown > 0) return false;
+  if (human.ability !== 'kill' && human.ability !== 'shooter') return false;
+  const range = rangeForAbility(human.ability);
   const targets = state.players.filter(p =>
-    p.alive && p.id !== 0 && !p.jailed && p.role === 'crewmate' &&
-    dist(human, p) < KILL_RANGE &&
+    p.alive && p.id !== 0 && !p.jailed && p.team !== human.team &&
+    dist(human, p) < range &&
     hasLineOfSight(human.x, human.y, p.x, p.y, state.doors)
   );
   if (targets.length > 0) {
-    targets[0].alive = false;
-    targets[0].doingTask = false;
+    const target = targets.reduce((a, b) => dist(human, a) < dist(human, b) ? a : b);
+    target.alive = false;
+    target.doingTask = false;
     human.killCooldown = KILL_COOLDOWN;
     return true;
   }
@@ -510,12 +582,10 @@ export function humanKill(state: GameState, now: number): boolean {
 
 export function humanArrest(state: GameState, now: number): boolean {
   const human = state.players[0];
-  if (!human.alive || human.jailed || human.role !== 'protector' || human.arrestCooldown > 0) return false;
+  if (!human.alive || human.jailed || human.ability !== 'jail' || human.arrestCooldown > 0) return false;
   if (state.jailDuration <= 0) return false;
-  const jailedCount = state.players.filter(p => p.jailed).length;
-  if (jailedCount >= MAX_JAILED) return false;
   const targets = state.players.filter(p =>
-    p.alive && p.id !== 0 && !p.jailed && p.role !== 'protector' &&
+    p.alive && p.id !== 0 && !p.jailed && p.team !== human.team &&
     dist(human, p) < ARREST_RANGE &&
     hasLineOfSight(human.x, human.y, p.x, p.y, state.doors)
   );
@@ -530,15 +600,17 @@ export function humanArrest(state: GameState, now: number): boolean {
 
 export function getNearbyTask(state: GameState): number | null {
   const human = state.players[0];
-  if (!human.alive || human.jailed || human.role === 'protector') return null;
-  const nearby = state.taskStations.find(t => !t.completed && dist(human, t) < TASK_RANGE);
+  if (!human.alive || human.jailed || human.ability !== 'crew') return null;
+  const nearby = state.taskStations.find(t =>
+    !t.completed && t.team === human.team && dist(human, t) < TASK_RANGE
+  );
   return nearby ? nearby.id : null;
 }
 
 export function getNearbyDoor(state: GameState): number | null {
   const human = state.players[0];
   if (!human.alive || human.jailed) return null;
-  if (human.role === 'protector') return null; // only crew & traitor use doors
+  if (human.ability === 'jail') return null;
   const door = state.doors.find(d => Math.hypot(d.cx - human.x, d.cy - human.y) < DOOR_INTERACT_RANGE);
   return door ? door.id : null;
 }
