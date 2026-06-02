@@ -2,6 +2,20 @@ export type Role = 'imposter' | 'crewmate' | 'protector';
 
 export type Ability = 'jail' | 'crew' | 'kill' | 'shooter';
 
+export type TeamIndex = 0 | 1 | 2;
+
+export const TEAM_COLORS: Record<TeamIndex, string> = {
+  0: '#4a90d9', // Blue
+  1: '#e03030', // Red
+  2: '#3dba6f', // Green
+};
+
+export const TEAM_NAMES: Record<TeamIndex, string> = {
+  0: 'BLUE',
+  1: 'RED',
+  2: 'GREEN',
+};
+
 export type JailTimerOption = 'off' | 10 | 20 | 'infinity';
 export type SpeedOption = 'slow' | 'medium' | 'fast';
 
@@ -43,6 +57,7 @@ export interface TaskStation {
   label: string;
   taskType: TaskType;
   completed: boolean;
+  team: TeamIndex;
 }
 
 export interface TaskChallenge {
@@ -74,6 +89,8 @@ export interface Player {
   x: number;
   y: number;
   role: Role;
+  ability: Ability;
+  team: TeamIndex;
   alive: boolean;
   frozen: boolean;
   frozenUntil: number;
@@ -125,7 +142,7 @@ export interface Door {
 export interface GameState {
   players: Player[];
   phase: 'lobby' | 'playing' | 'gameover';
-  winner: 'imposters' | 'crew' | null;
+  winner: TeamIndex | null;
   timeElapsed: number;
   mapWidth: number;
   mapHeight: number;
@@ -138,6 +155,8 @@ export interface GameState {
   doors: Door[];
   jailDuration: number;        // 0 = arrest disabled, Infinity = permanent
   settings: GameSettings;
+  teamAbilities: [Ability, Ability, Ability];
+  teamCounts: [number, number, number];
 }
 
 export const PLAYER_RADIUS = 18;
