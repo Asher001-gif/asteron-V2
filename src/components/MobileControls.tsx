@@ -1,15 +1,17 @@
 import { useRef, useCallback, useEffect, useState } from 'react';
-import { Role } from '@/game/types';
+import { Role, Ability, TeamIndex, TEAM_COLORS } from '@/game/types';
 
 interface Props {
   role: Role;
+  ability?: Ability;
+  team?: TeamIndex;
   canAction: boolean; // near task for crew, near target for imposter/protector
   actionLabel: string; // "TASK" | "KILL" | "FREEZE"
   onMove: (dx: number, dy: number) => void;
   onAction: () => void;
 }
 
-export default function MobileControls({ role, canAction, actionLabel, onMove, onAction }: Props) {
+export default function MobileControls({ role, ability, team, canAction, actionLabel, onMove, onAction }: Props) {
   const joystickRef = useRef<HTMLDivElement>(null);
   const [knobPos, setKnobPos] = useState({ x: 0, y: 0 });
   const activeTouch = useRef<number | null>(null);
@@ -58,7 +60,9 @@ export default function MobileControls({ role, canAction, actionLabel, onMove, o
     onMove(0, 0);
   }, [onMove]);
 
-  const actionColor = role === 'imposter' ? '#e03030' : role === 'protector' ? '#ffaa33' : '#4a90d9';
+  const actionColor = team !== undefined
+    ? TEAM_COLORS[team]
+    : (role === 'imposter' ? '#e03030' : role === 'protector' ? '#ffaa33' : '#4a90d9');
 
   return (
     <div className="fixed inset-0 pointer-events-none z-40" style={{ touchAction: 'none' }}>
