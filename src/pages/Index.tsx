@@ -1,5 +1,5 @@
-import { useState, useCallback, useEffect } from 'react';
-import { GameSettings, GameState } from '@/game/types';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { GameSettings, GameState, DEFAULT_SETTINGS } from '@/game/types';
 import { createGame } from '@/game/engine';
 import GameCanvas from '@/components/GameCanvas';
 import LobbyScreen from '@/components/LobbyScreen';
