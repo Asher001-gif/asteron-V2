@@ -33,10 +33,10 @@ const BOT_VISION: Record<Ability, number> = {
 };
 
 const ABILITY_SPEED: Record<Ability, number> = {
-  crew: 3.3,
-  jail: 3.4,
-  kill: 3.6,
-  shooter: 3.4,
+  crew: 3.5,
+  jail: 3.5,
+  kill: 3.5,
+  shooter: 3.5,
 };
 
 function rangeForAbility(ab: Ability): number {
