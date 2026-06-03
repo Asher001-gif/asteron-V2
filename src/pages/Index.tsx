@@ -1,5 +1,5 @@
-import { useState, useCallback, useEffect } from 'react';
-import { GameSettings, GameState } from '@/game/types';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { GameSettings, GameState, DEFAULT_SETTINGS } from '@/game/types';
 import { createGame } from '@/game/engine';
 import GameCanvas from '@/components/GameCanvas';
 import LobbyScreen from '@/components/LobbyScreen';
@@ -17,6 +17,17 @@ export default function Index() {
   const [draftName, setDraftName] = useState<string>('');
   const [saved, setSaved] = useState(false);
   const [editing, setEditing] = useState(false);
+
+  const savedSettings = useMemo<GameSettings>(() => {
+    try {
+      const raw = localStorage.getItem('asteron_settings');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        return { ...DEFAULT_SETTINGS, ...parsed };
+      }
+    } catch {}
+    return DEFAULT_SETTINGS;
+  }, []);
 
   useEffect(() => {
     const stored = localStorage.getItem('mb_username');
@@ -53,6 +64,7 @@ export default function Index() {
   if (showSettings && !gameState) {
     return (
       <SettingsScreen
+        initial={savedSettings}
         onBack={() => setShowSettings(false)}
         onStart={handleStart}
       />

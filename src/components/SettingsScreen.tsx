@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Ability, GameSettings, DEFAULT_SETTINGS, JailTimerOption, SpeedOption } from '@/game/types';
 
 interface Props {
@@ -22,6 +22,10 @@ const SPEED_OPTIONS: SpeedOption[] = ['slow', 'medium', 'fast'];
 
 export default function SettingsScreen({ initial, onBack, onStart }: Props) {
   const [settings, setSettings] = useState<GameSettings>(initial ?? DEFAULT_SETTINGS);
+
+  useEffect(() => {
+    localStorage.setItem('asteron_settings', JSON.stringify(settings));
+  }, [settings]);
 
   const sumCounts = settings.roleCounts.reduce((a, b) => a + b, 0);
   const valid = sumCounts === settings.playerCount && settings.playerCount >= 2;
