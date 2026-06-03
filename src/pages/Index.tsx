@@ -18,6 +18,17 @@ export default function Index() {
   const [saved, setSaved] = useState(false);
   const [editing, setEditing] = useState(false);
 
+  const savedSettings = useMemo<GameSettings>(() => {
+    try {
+      const raw = localStorage.getItem('asteron_settings');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        return { ...DEFAULT_SETTINGS, ...parsed };
+      }
+    } catch {}
+    return DEFAULT_SETTINGS;
+  }, []);
+
   useEffect(() => {
     const stored = localStorage.getItem('mb_username');
     const name = stored && stored.trim() ? stored : 'Astro';
