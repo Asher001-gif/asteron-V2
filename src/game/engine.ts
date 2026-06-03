@@ -528,6 +528,15 @@ export function updateGame(state: GameState, dt: number, keys: Set<string>, now:
   if (winner !== null) {
     return { ...state, phase: 'gameover', winner, timeElapsed: state.timeElapsed + dt };
   }
+
+  // If no living jailer remains on any team, free all prisoners (no one to guard them)
+  const anyJailerAlive = state.players.some(p => p.ability === 'jail' && p.alive && !p.jailed);
+  if (!anyJailerAlive) {
+    for (const p of state.players) {
+      if (p.jailed && p.alive) releasePlayer(p);
+    }
+  }
+
   return { ...state, timeElapsed: state.timeElapsed + dt };
 }
 
