@@ -64,6 +64,7 @@ export default function Index() {
   if (showSettings && !gameState) {
     return (
       <SettingsScreen
+        initial={savedSettings}
         onBack={() => setShowSettings(false)}
         onStart={handleStart}
       />
