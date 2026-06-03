@@ -6,6 +6,7 @@ import protA from '@/assets/char-protector-a.png';
 import protB from '@/assets/char-protector-b.png';
 import traitorA from '@/assets/char-traitor-a.png';
 import traitorB from '@/assets/char-traitor-b.png';
+import deadPlayerImg from '@/assets/dead-player.png';
 
 const SPRITES: Record<string, HTMLImageElement> = {};
 function loadSprite(key: string, src: string) {
@@ -19,6 +20,7 @@ loadSprite('protector_a', protA);
 loadSprite('protector_b', protB);
 loadSprite('traitor_a', traitorA);
 loadSprite('traitor_b', traitorB);
+loadSprite('dead', deadPlayerImg);
 
 // Per-player facing memory (renderer-local, no engine impact)
 const FACING: Map<number, number> = new Map();
@@ -963,41 +965,20 @@ function drawProtectorChar(ctx: CanvasRenderingContext2D, x: number, y: number, 
 function drawDeadPlayer(ctx: CanvasRenderingContext2D, p: Player) {
   const x = p.x;
   const y = p.y;
-  const s = 1.0;
-
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate(Math.PI / 2);
-  ctx.globalAlpha = 0.5;
-
-  ctx.beginPath();
-  ctx.ellipse(0, 0, 16 * s, 12 * s, 0, 0, Math.PI * 2);
-  ctx.fillStyle = '#666';
-  ctx.fill();
-  ctx.strokeStyle = '#444';
-  ctx.lineWidth = 1;
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.ellipse(-6 * s, 0, 7 * s, 5 * s, 0, 0, Math.PI * 2);
-  ctx.fillStyle = '#1a1a1a';
-  ctx.fill();
-  ctx.strokeStyle = '#e03030';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(-8 * s, -2 * s);
-  ctx.lineTo(-4 * s, 2 * s);
-  ctx.moveTo(-6 * s, -3 * s);
-  ctx.lineTo(-3 * s, 0);
-  ctx.stroke();
-
-  ctx.globalAlpha = 1;
-  ctx.restore();
-
-  ctx.fillStyle = '#ff4444';
-  ctx.font = '14px monospace';
-  ctx.textAlign = 'center';
-  ctx.fillText('☠', x, y - 18 * s);
+  const img = SPRITES['dead'];
+  const w = PLAYER_RADIUS * 2.6;
+  const h = PLAYER_RADIUS * 1.9;
+  if (img && img.complete && img.naturalWidth > 0) {
+    ctx.drawImage(img, x - w / 2, y - h / 2, w, h);
+  } else {
+    ctx.save();
+    ctx.globalAlpha = 0.6;
+    ctx.beginPath();
+    ctx.ellipse(x, y, w / 2, h / 2, 0, 0, Math.PI * 2);
+    ctx.fillStyle = '#888';
+    ctx.fill();
+    ctx.restore();
+  }
 }
 
 /* ==================== HUD ==================== */
