@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Ability, GameSettings, DEFAULT_SETTINGS, JailTimerOption, SpeedOption } from '@/game/types';
 
 interface Props {
