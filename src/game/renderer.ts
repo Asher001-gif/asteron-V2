@@ -569,7 +569,7 @@ function drawPlayer(ctx: CanvasRenderingContext2D, p: Player, human: Player) {
     // Fallback circle while sprite loads
     ctx.beginPath();
     ctx.arc(0, 0, 16, 0, Math.PI * 2);
-    ctx.fillStyle = role === 'protector' ? '#3dba6f' : role === 'traitor' ? '#e03030' : '#4a90d9';
+    ctx.fillStyle = '#4a90d9';
     ctx.fill();
   }
   ctx.restore();
