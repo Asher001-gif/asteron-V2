@@ -30,7 +30,8 @@ export default function Index() {
   }, []);
 
   useEffect(() => {
-    const stored = localStorage.getItem('mb_username');
+    let stored: string | null = null;
+    try { stored = localStorage.getItem('mb_username'); } catch { /* sandboxed iframe */ }
     const name = stored && stored.trim() ? stored : 'Astro';
     setUsername(name);
     setDraftName(name);
@@ -38,7 +39,7 @@ export default function Index() {
 
   const handleSaveName = useCallback(() => {
     const name = draftName.trim() || 'Astro';
-    localStorage.setItem('mb_username', name);
+    try { localStorage.setItem('mb_username', name); } catch { /* sandboxed iframe */ }
     setUsername(name);
     setDraftName(name);
     setSaved(true);
@@ -49,10 +50,19 @@ export default function Index() {
   const handleStart = useCallback((settings: GameSettings) => {
     setShowSettings(false);
     setLoading(true);
+    // In a sandboxed iframe (itch.io etc.) skip the artificial wait so the
+    // game never appears "stuck" on the searching screen.
+    const inIframe = typeof window !== 'undefined' && window.self !== window.top;
+    const delay = inIframe ? 600 : 2500;
     setTimeout(() => {
-      setGameState(createGame(settings, username));
-      setLoading(false);
-    }, 2500);
+      try {
+        setGameState(createGame(settings, username));
+      } catch (err) {
+        console.error('createGame failed', err);
+      } finally {
+        setLoading(false);
+      }
+    }, delay);
   }, [username]);
 
   const handleRestart = useCallback(() => {

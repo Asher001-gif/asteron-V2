@@ -24,7 +24,11 @@ export default function SettingsScreen({ initial, onBack, onStart }: Props) {
   const [settings, setSettings] = useState<GameSettings>(initial ?? DEFAULT_SETTINGS);
 
   useEffect(() => {
-    localStorage.setItem('asteron_settings', JSON.stringify(settings));
+    try {
+      localStorage.setItem('asteron_settings', JSON.stringify(settings));
+    } catch {
+      /* sandboxed iframe (e.g. itch.io) — storage unavailable, ignore */
+    }
   }, [settings]);
 
   const sumCounts = settings.roleCounts.reduce((a, b) => a + b, 0);
