@@ -7,6 +7,7 @@ import { componentTagger } from "lovable-tagger";
 export default defineConfig(({ mode }) => ({
   // Use relative asset paths so the build works when hosted on a subpath
   // (e.g. embedded on itch.io) without serving from the domain root.
+  // sync: itch.io-safe build (no-op bump to trigger GitHub sync)
   base: "./",
   server: {
     host: "::",
