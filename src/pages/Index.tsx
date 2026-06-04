@@ -49,20 +49,11 @@ export default function Index() {
 
   const handleStart = useCallback((settings: GameSettings) => {
     setShowSettings(false);
-    setLoading(true);
-    // In a sandboxed iframe (itch.io etc.) skip the artificial wait so the
-    // game never appears "stuck" on the searching screen.
-    const inIframe = typeof window !== 'undefined' && window.self !== window.top;
-    const delay = inIframe ? 600 : 2500;
-    setTimeout(() => {
-      try {
-        setGameState(createGame(settings, username));
-      } catch (err) {
-        console.error('createGame failed', err);
-      } finally {
-        setLoading(false);
-      }
-    }, delay);
+    try {
+      setGameState(createGame(settings, username));
+    } catch (err) {
+      console.error('createGame failed', err);
+    }
   }, [username]);
 
   const handleRestart = useCallback(() => {
