@@ -241,6 +241,29 @@ const ROOM_CENTERS = [
 function aiHunterBehavior(player: Player, visible: Player[], now: number) {
   // Chase any enemy (different team)
   const enemies = visible.filter(p => p.team !== player.team);
+
+  // Enhanced hunters lock onto the first crewmate (or any enemy) they spot
+  // and chase relentlessly until that target is dead or jailed.
+  if (player.enhanced) {
+    if (player.lockedTargetId != null) {
+      const locked = visible.find(p => p.id === player.lockedTargetId);
+      if (locked && locked.alive && !locked.jailed) {
+        player.direction = getNavigationDirection(player.x, player.y, locked.x, locked.y);
+        return;
+      }
+      player.lockedTargetId = null;
+    }
+    if (enemies.length > 0) {
+      // Prefer crew targets, otherwise nearest enemy
+      const crew = enemies.filter(p => p.ability === 'crew');
+      const pool = crew.length > 0 ? crew : enemies;
+      const target = pool.reduce((a, b) => dist(player, a) < dist(player, b) ? a : b);
+      player.lockedTargetId = target.id;
+      player.direction = getNavigationDirection(player.x, player.y, target.x, target.y);
+      return;
+    }
+  }
+
   // Avoid nearby enemy jailers when there's no kill opportunity yet
   const nearbyJailer = enemies.find(p => p.ability === 'jail' && dist(player, p) < 160);
   if (nearbyJailer && Math.random() < 0.6) {
