@@ -107,7 +107,20 @@ export function createGame(settings: GameSettings = DEFAULT_SETTINGS, playerName
 
   // Pick 9 random unique names for bots (player 0 is human, named "You")
   const shuffledNames = [...BOT_NAMES].sort(() => Math.random() - 0.5);
+  const shuffledEnhancedNames = [...ENHANCED_BOT_NAMES].sort(() => Math.random() - 0.5);
   const humanName = (playerName && playerName.trim()) || 'Astro';
+
+  // Pick which bot indices are "enhanced" (smart). Count = round(playerCount/2).
+  // Human (index 0) is never enhanced.
+  const enhancedCount = Math.round(settings.playerCount / 2);
+  const botIndices = slots.map((_, i) => i).filter(i => i !== 0);
+  for (let i = botIndices.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [botIndices[i], botIndices[j]] = [botIndices[j], botIndices[i]];
+  }
+  const enhancedSet = new Set(botIndices.slice(0, enhancedCount));
+  let enhNameIdx = 0;
+
   const players: Player[] = slots.map((slot, i) => ({
     id: i,
     x: 200 + Math.random() * (MAP_WIDTH - 400),
@@ -118,7 +131,11 @@ export function createGame(settings: GameSettings = DEFAULT_SETTINGS, playerName
     alive: true,
     frozen: false,
     frozenUntil: 0,
-    name: i === 0 ? humanName : shuffledNames[(i - 1) % shuffledNames.length],
+    name: i === 0
+      ? humanName
+      : enhancedSet.has(i)
+        ? shuffledEnhancedNames[(enhNameIdx++) % shuffledEnhancedNames.length]
+        : shuffledNames[(i - 1) % shuffledNames.length],
     isHuman: i === 0,
     speed: ABILITY_SPEED[slot.ability] * speedMult,
     direction: { x: 0, y: 0 },
@@ -138,6 +155,8 @@ export function createGame(settings: GameSettings = DEFAULT_SETTINGS, playerName
     actionSkipUntil: 0,
     doorBusyUntil: 0,
     doorBusyId: null,
+    enhanced: i !== 0 && enhancedSet.has(i),
+    lockedTargetId: null,
   }));
 
   // Keep players out of jail at spawn
