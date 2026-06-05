@@ -19,6 +19,15 @@ const BOT_NAMES = [
   'GrimReaper_Pro', 'Cornely3', 'Emma', 'Amelia',
 ];
 
+// Distinct name pool for "enhanced" smart bots — players don't know
+// these are different, but the names are unique to keep variety.
+const ENHANCED_BOT_NAMES = [
+  'ShadowFox', 'NeonPulse', 'GhostByte', 'CryoWave', 'IronVeil',
+  'EchoRift', 'BlazeKite', 'OrbitJinx', 'PhantomZed', 'MysticOwl',
+  'SilentArc', 'TitanFlux', 'VoidStrider', 'NovaHex', 'CinderJay',
+  'HollowKing', 'Drift_07', 'PulsarMx', 'KaiRogue', 'Zephyr_Q',
+];
+
 // Global bot action throttle: max 3 bots may act simultaneously, with a
 // 0.5-1s gap between successive bot action ticks.
 const MAX_CONCURRENT_BOT_ACTIONS = 3;
@@ -98,7 +107,20 @@ export function createGame(settings: GameSettings = DEFAULT_SETTINGS, playerName
 
   // Pick 9 random unique names for bots (player 0 is human, named "You")
   const shuffledNames = [...BOT_NAMES].sort(() => Math.random() - 0.5);
+  const shuffledEnhancedNames = [...ENHANCED_BOT_NAMES].sort(() => Math.random() - 0.5);
   const humanName = (playerName && playerName.trim()) || 'Astro';
+
+  // Pick which bot indices are "enhanced" (smart). Count = round(playerCount/2).
+  // Human (index 0) is never enhanced.
+  const enhancedCount = Math.round(settings.playerCount / 2);
+  const botIndices = slots.map((_, i) => i).filter(i => i !== 0);
+  for (let i = botIndices.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [botIndices[i], botIndices[j]] = [botIndices[j], botIndices[i]];
+  }
+  const enhancedSet = new Set(botIndices.slice(0, enhancedCount));
+  let enhNameIdx = 0;
+
   const players: Player[] = slots.map((slot, i) => ({
     id: i,
     x: 200 + Math.random() * (MAP_WIDTH - 400),
@@ -109,7 +131,11 @@ export function createGame(settings: GameSettings = DEFAULT_SETTINGS, playerName
     alive: true,
     frozen: false,
     frozenUntil: 0,
-    name: i === 0 ? humanName : shuffledNames[(i - 1) % shuffledNames.length],
+    name: i === 0
+      ? humanName
+      : enhancedSet.has(i)
+        ? shuffledEnhancedNames[(enhNameIdx++) % shuffledEnhancedNames.length]
+        : shuffledNames[(i - 1) % shuffledNames.length],
     isHuman: i === 0,
     speed: ABILITY_SPEED[slot.ability] * speedMult,
     direction: { x: 0, y: 0 },
@@ -129,6 +155,8 @@ export function createGame(settings: GameSettings = DEFAULT_SETTINGS, playerName
     actionSkipUntil: 0,
     doorBusyUntil: 0,
     doorBusyId: null,
+    enhanced: i !== 0 && enhancedSet.has(i),
+    lockedTargetId: null,
   }));
 
   // Keep players out of jail at spawn
@@ -213,6 +241,29 @@ const ROOM_CENTERS = [
 function aiHunterBehavior(player: Player, visible: Player[], now: number) {
   // Chase any enemy (different team)
   const enemies = visible.filter(p => p.team !== player.team);
+
+  // Enhanced hunters lock onto the first crewmate (or any enemy) they spot
+  // and chase relentlessly until that target is dead or jailed.
+  if (player.enhanced) {
+    if (player.lockedTargetId != null) {
+      const locked = visible.find(p => p.id === player.lockedTargetId);
+      if (locked && locked.alive && !locked.jailed) {
+        player.direction = getNavigationDirection(player.x, player.y, locked.x, locked.y);
+        return;
+      }
+      player.lockedTargetId = null;
+    }
+    if (enemies.length > 0) {
+      // Prefer crew targets, otherwise nearest enemy
+      const crew = enemies.filter(p => p.ability === 'crew');
+      const pool = crew.length > 0 ? crew : enemies;
+      const target = pool.reduce((a, b) => dist(player, a) < dist(player, b) ? a : b);
+      player.lockedTargetId = target.id;
+      player.direction = getNavigationDirection(player.x, player.y, target.x, target.y);
+      return;
+    }
+  }
+
   // Avoid nearby enemy jailers when there's no kill opportunity yet
   const nearbyJailer = enemies.find(p => p.ability === 'jail' && dist(player, p) < 160);
   if (nearbyJailer && Math.random() < 0.6) {
@@ -276,6 +327,24 @@ function aiCrewBehavior(player: Player, visible: Player[], state: GameState, now
   if (player.doingTask) { player.direction = { x: 0, y: 0 }; return; }
 
   const vision = BOT_VISION[player.ability];
+
+  // Enhanced crew actively avoid threats (enemy killers/shooters/jailers).
+  if (player.enhanced) {
+    const threats = visible.filter(p =>
+      p.team !== player.team && (p.ability === 'kill' || p.ability === 'shooter' || p.ability === 'jail')
+    );
+    if (threats.length > 0) {
+      const nearest = threats.reduce((a, b) => dist(player, a) < dist(player, b) ? a : b);
+      const dir = getNavigationDirection(
+        player.x, player.y,
+        player.x + (player.x - nearest.x),
+        player.y + (player.y - nearest.y),
+      );
+      player.direction = dir;
+      return;
+    }
+  }
+
   const nearbyTasks = state.taskStations.filter(t => !t.completed && t.team === player.team && dist(player, t) <= vision);
   if (nearbyTasks.length > 0) {
     const closest = nearbyTasks.reduce((a, b) => dist(player, a) < dist(player, b) ? a : b);
@@ -344,16 +413,22 @@ function performAIActions(player: Player, allPlayers: Player[], state: GameState
         p.alive && !p.jailed && p.team !== player.team && p.ability === 'jail' &&
         dist(player, p) < 200 && hasLineOfSight(player.x, player.y, p.x, p.y, state.doors)
       );
-      if (!jailerNear) {
+      if (!jailerNear || player.enhanced) {
         if (player.actionPlanTargetId !== target.id) {
           player.actionPlanTargetId = target.id;
-          player.actionPlanAt = now + 1000 + Math.random() * 2000; // 1-3s
+          // Enhanced hunters commit faster (0.4-1.2s) — relentless pursuit.
+          player.actionPlanAt = player.enhanced
+            ? now + 400 + Math.random() * 800
+            : now + 1000 + Math.random() * 2000;
         } else if (now >= player.actionPlanAt) {
           target.alive = false;
           target.doingTask = false;
           target.taskStationId = null;
           player.killCooldown = KILL_COOLDOWN;
           player.actionPlanTargetId = null;
+          if (player.enhanced && player.lockedTargetId === target.id) {
+            player.lockedTargetId = null;
+          }
           if (Math.random() < 0.35) player.actionSkipUntil = now + 2500;
         }
       } else {
@@ -472,13 +547,34 @@ export function updateGame(state: GameState, dt: number, keys: Set<string>, now:
     if (!p.isHuman && p.doorBusyUntil === 0) {
       // Check if there's a closed door right in front to interact with
       if (p.ability !== 'jail') {
-        const door = state.doors.find(d =>
-          !d.open && Math.hypot(d.cx - p.x, d.cy - p.y) < 50
-        );
-        if (door) {
-          p.doorBusyUntil = now + 3000;
-          p.doorBusyId = door.id;
-          p.direction = { x: 0, y: 0 };
+        if (p.enhanced && p.ability === 'crew') {
+          // Enhanced crew: don't toggle doors casually. Only close a nearby
+          // OPEN door if an enemy threat is close by.
+          const threatNear = state.players.some(other =>
+            other.id !== p.id && other.alive && !other.jailed &&
+            other.team !== p.team &&
+            (other.ability === 'kill' || other.ability === 'shooter' || other.ability === 'jail') &&
+            Math.hypot(other.x - p.x, other.y - p.y) < 260
+          );
+          if (threatNear) {
+            const openDoor = state.doors.find(d =>
+              d.open && Math.hypot(d.cx - p.x, d.cy - p.y) < 80
+            );
+            if (openDoor) {
+              p.doorBusyUntil = now + 3000;
+              p.doorBusyId = openDoor.id;
+              p.direction = { x: 0, y: 0 };
+            }
+          }
+        } else {
+          const door = state.doors.find(d =>
+            !d.open && Math.hypot(d.cx - p.x, d.cy - p.y) < 50
+          );
+          if (door) {
+            p.doorBusyUntil = now + 3000;
+            p.doorBusyId = door.id;
+            p.direction = { x: 0, y: 0 };
+          }
         }
       }
     }
