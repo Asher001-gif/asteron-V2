@@ -413,16 +413,22 @@ function performAIActions(player: Player, allPlayers: Player[], state: GameState
         p.alive && !p.jailed && p.team !== player.team && p.ability === 'jail' &&
         dist(player, p) < 200 && hasLineOfSight(player.x, player.y, p.x, p.y, state.doors)
       );
-      if (!jailerNear) {
+      if (!jailerNear || player.enhanced) {
         if (player.actionPlanTargetId !== target.id) {
           player.actionPlanTargetId = target.id;
-          player.actionPlanAt = now + 1000 + Math.random() * 2000; // 1-3s
+          // Enhanced hunters commit faster (0.4-1.2s) — relentless pursuit.
+          player.actionPlanAt = player.enhanced
+            ? now + 400 + Math.random() * 800
+            : now + 1000 + Math.random() * 2000;
         } else if (now >= player.actionPlanAt) {
           target.alive = false;
           target.doingTask = false;
           target.taskStationId = null;
           player.killCooldown = KILL_COOLDOWN;
           player.actionPlanTargetId = null;
+          if (player.enhanced && player.lockedTargetId === target.id) {
+            player.lockedTargetId = null;
+          }
           if (Math.random() < 0.35) player.actionSkipUntil = now + 2500;
         }
       } else {
