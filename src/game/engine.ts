@@ -327,6 +327,24 @@ function aiCrewBehavior(player: Player, visible: Player[], state: GameState, now
   if (player.doingTask) { player.direction = { x: 0, y: 0 }; return; }
 
   const vision = BOT_VISION[player.ability];
+
+  // Enhanced crew actively avoid threats (enemy killers/shooters/jailers).
+  if (player.enhanced) {
+    const threats = visible.filter(p =>
+      p.team !== player.team && (p.ability === 'kill' || p.ability === 'shooter' || p.ability === 'jail')
+    );
+    if (threats.length > 0) {
+      const nearest = threats.reduce((a, b) => dist(player, a) < dist(player, b) ? a : b);
+      const dir = getNavigationDirection(
+        player.x, player.y,
+        player.x + (player.x - nearest.x),
+        player.y + (player.y - nearest.y),
+      );
+      player.direction = dir;
+      return;
+    }
+  }
+
   const nearbyTasks = state.taskStations.filter(t => !t.completed && t.team === player.team && dist(player, t) <= vision);
   if (nearbyTasks.length > 0) {
     const closest = nearbyTasks.reduce((a, b) => dist(player, a) < dist(player, b) ? a : b);
