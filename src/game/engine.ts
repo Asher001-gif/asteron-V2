@@ -19,6 +19,15 @@ const BOT_NAMES = [
   'GrimReaper_Pro', 'Cornely3', 'Emma', 'Amelia',
 ];
 
+// Distinct name pool for "enhanced" smart bots — players don't know
+// these are different, but the names are unique to keep variety.
+const ENHANCED_BOT_NAMES = [
+  'ShadowFox', 'NeonPulse', 'GhostByte', 'CryoWave', 'IronVeil',
+  'EchoRift', 'BlazeKite', 'OrbitJinx', 'PhantomZed', 'MysticOwl',
+  'SilentArc', 'TitanFlux', 'VoidStrider', 'NovaHex', 'CinderJay',
+  'HollowKing', 'Drift_07', 'PulsarMx', 'KaiRogue', 'Zephyr_Q',
+];
+
 // Global bot action throttle: max 3 bots may act simultaneously, with a
 // 0.5-1s gap between successive bot action ticks.
 const MAX_CONCURRENT_BOT_ACTIONS = 3;
