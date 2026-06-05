@@ -115,6 +115,9 @@ export interface Player {
   actionSkipUntil: number;
   doorBusyUntil: number;
   doorBusyId: number | null;
+  // Enhanced (smart) bot flag and lock-on target
+  enhanced?: boolean;
+  lockedTargetId?: number | null;
 }
 
 export interface FreezeProjectile {
