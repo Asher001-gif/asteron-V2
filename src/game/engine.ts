@@ -541,13 +541,34 @@ export function updateGame(state: GameState, dt: number, keys: Set<string>, now:
     if (!p.isHuman && p.doorBusyUntil === 0) {
       // Check if there's a closed door right in front to interact with
       if (p.ability !== 'jail') {
-        const door = state.doors.find(d =>
-          !d.open && Math.hypot(d.cx - p.x, d.cy - p.y) < 50
-        );
-        if (door) {
-          p.doorBusyUntil = now + 3000;
-          p.doorBusyId = door.id;
-          p.direction = { x: 0, y: 0 };
+        if (p.enhanced && p.ability === 'crew') {
+          // Enhanced crew: don't toggle doors casually. Only close a nearby
+          // OPEN door if an enemy threat is close by.
+          const threatNear = state.players.some(other =>
+            other.id !== p.id && other.alive && !other.jailed &&
+            other.team !== p.team &&
+            (other.ability === 'kill' || other.ability === 'shooter' || other.ability === 'jail') &&
+            Math.hypot(other.x - p.x, other.y - p.y) < 260
+          );
+          if (threatNear) {
+            const openDoor = state.doors.find(d =>
+              d.open && Math.hypot(d.cx - p.x, d.cy - p.y) < 80
+            );
+            if (openDoor) {
+              p.doorBusyUntil = now + 3000;
+              p.doorBusyId = openDoor.id;
+              p.direction = { x: 0, y: 0 };
+            }
+          }
+        } else {
+          const door = state.doors.find(d =>
+            !d.open && Math.hypot(d.cx - p.x, d.cy - p.y) < 50
+          );
+          if (door) {
+            p.doorBusyUntil = now + 3000;
+            p.doorBusyId = door.id;
+            p.direction = { x: 0, y: 0 };
+          }
         }
       }
     }
