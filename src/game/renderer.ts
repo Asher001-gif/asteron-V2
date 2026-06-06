@@ -606,23 +606,51 @@ function drawPlayer(ctx: CanvasRenderingContext2D, p: Player, human: Player) {
 function drawProjectiles(ctx: CanvasRenderingContext2D, projectiles: FreezeProjectile[]) {
   const now = performance.now();
   for (const proj of projectiles) {
-    const t = Math.min(1, (now - proj.startTime) / proj.duration);
-    const px = proj.x + (proj.targetX - proj.x) * t;
-    const py = proj.y + (proj.targetY - proj.y) * t;
+    let px: number, py: number;
+    if (proj.kind === 'bullet') {
+      const elapsed = now - proj.startTime;
+      const traveled = Math.min(elapsed * (proj.speed || 1), proj.maxDistance || 9999);
+      px = proj.x + (proj.dirX || 0) * traveled;
+      py = proj.y + (proj.dirY || 0) * traveled;
 
-    // Glow trail
+      // Streak tail
+      const tailLen = 22;
+      const tx = px - (proj.dirX || 0) * tailLen;
+      const ty = py - (proj.dirY || 0) * tailLen;
+      const grad = ctx.createLinearGradient(tx, ty, px, py);
+      grad.addColorStop(0, 'rgba(255, 180, 60, 0)');
+      grad.addColorStop(1, 'rgba(255, 220, 120, 0.95)');
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 4;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(tx, ty);
+      ctx.lineTo(px, py);
+      ctx.stroke();
+
+      // Hot core
+      ctx.beginPath();
+      ctx.arc(px, py, 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = '#fff4c8';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(px, py, 1.8, 0, Math.PI * 2);
+      ctx.fillStyle = '#fff';
+      ctx.fill();
+      continue;
+    }
+
+    const t = Math.min(1, (now - proj.startTime) / proj.duration);
+    px = proj.x + (proj.targetX - proj.x) * t;
+    py = proj.y + (proj.targetY - proj.y) * t;
     ctx.beginPath();
     ctx.arc(px, py, 8, 0, Math.PI * 2);
     ctx.fillStyle = 'rgba(64, 216, 240, 0.3)';
     ctx.fill();
-
-    // Core bullet
     ctx.beginPath();
     ctx.arc(px, py, 4, 0, Math.PI * 2);
     ctx.fillStyle = '#40d8f0';
     ctx.fill();
-
-    // Small sparkle
     ctx.beginPath();
     ctx.arc(px, py, 2, 0, Math.PI * 2);
     ctx.fillStyle = '#fff';
