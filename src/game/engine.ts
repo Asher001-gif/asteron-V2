@@ -1,6 +1,7 @@
 import {
   Player, GameState, Role,
-  PLAYER_RADIUS, KILL_RANGE,
+  PLAYER_RADIUS, KILL_CLOSE_RANGE, SHOOTER_RANGE,
+  BULLET_SPEED, BULLET_HIT_RADIUS, FreezeProjectile,
   KILL_COOLDOWN, MAP_WIDTH, MAP_HEIGHT, TASK_RANGE, TOTAL_TASKS,
   ARREST_RANGE, ARREST_COOLDOWN, JAIL_DURATION, JAIL_RECT, JAIL_RELEASE,
   DOOR_INTERACT_RANGE, DOOR_USE_COOLDOWN,
@@ -38,7 +39,7 @@ const BOT_VISION: Record<Ability, number> = {
   crew: 220,
   jail: 180,
   kill: 130,
-  shooter: 220,
+  shooter: SHOOTER_RANGE,
 };
 
 const ABILITY_SPEED: Record<Ability, number> = {
@@ -48,9 +49,9 @@ const ABILITY_SPEED: Record<Ability, number> = {
   shooter: 3.5,
 };
 
-function rangeForAbility(ab: Ability): number {
-  if (ab === 'shooter') return KILL_RANGE * 2.4;
-  if (ab === 'kill') return KILL_RANGE;
+export function rangeForAbility(ab: Ability): number {
+  if (ab === 'shooter') return SHOOTER_RANGE;
+  if (ab === 'kill') return KILL_CLOSE_RANGE;
   if (ab === 'jail') return ARREST_RANGE;
   return 0;
 }
@@ -393,6 +394,73 @@ function releasePlayer(target: Player) {
   target.y = JAIL_RELEASE.y + (Math.random() - 0.5) * 80;
 }
 
+/** Spawn a bullet projectile aimed at `target`'s current position. */
+function fireBullet(state: GameState, shooter: Player, target: Player, now: number) {
+  const dx = target.x - shooter.x;
+  const dy = target.y - shooter.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const dirX = dx / len;
+  const dirY = dy / len;
+  const maxDistance = SHOOTER_RANGE + 40;
+  const proj: FreezeProjectile = {
+    x: shooter.x + dirX * (PLAYER_RADIUS + 2),
+    y: shooter.y + dirY * (PLAYER_RADIUS + 2),
+    targetX: shooter.x + dirX * maxDistance,
+    targetY: shooter.y + dirY * maxDistance,
+    speed: BULLET_SPEED,
+    startTime: now,
+    duration: maxDistance / BULLET_SPEED + 50,
+    kind: 'bullet',
+    ownerId: shooter.id,
+    ownerTeam: shooter.team,
+    dirX, dirY,
+    maxDistance,
+    hit: false,
+  };
+  state.projectiles.push(proj);
+}
+
+/** Advance bullets, detect wall blocks and player hits. */
+function updateBullets(state: GameState, now: number) {
+  for (const proj of state.projectiles) {
+    if (proj.kind !== 'bullet' || proj.hit) continue;
+    const elapsed = now - proj.startTime;
+    const traveled = Math.min(elapsed * (proj.speed || BULLET_SPEED), proj.maxDistance || SHOOTER_RANGE);
+    const cx = proj.x + (proj.dirX || 0) * traveled;
+    const cy = proj.y + (proj.dirY || 0) * traveled;
+
+    // Wall block: if line from origin to current position no longer has LOS,
+    // bullet is absorbed by a wall/closed door.
+    if (!hasLineOfSight(proj.x, proj.y, cx, cy, state.doors)) {
+      proj.hit = true;
+      continue;
+    }
+
+    // Player hit: any alive enemy of owner within hit radius.
+    for (const p of state.players) {
+      if (!p.alive || p.jailed) continue;
+      if (p.id === proj.ownerId) continue;
+      if (p.team === proj.ownerTeam) continue;
+      const d = Math.hypot(p.x - cx, p.y - cy);
+      if (d < BULLET_HIT_RADIUS + PLAYER_RADIUS - 8) {
+        p.alive = false;
+        p.doingTask = false;
+        p.taskStationId = null;
+        proj.hit = true;
+        break;
+      }
+    }
+  }
+  // Remove bullets that have hit or reached end of life.
+  state.projectiles = state.projectiles.filter(p => {
+    if (p.kind === 'bullet') {
+      if (p.hit) return false;
+      return now - p.startTime < p.duration;
+    }
+    return now - p.startTime < p.duration;
+  });
+}
+
 function performAIActions(player: Player, allPlayers: Player[], state: GameState, now: number) {
   if (!player.alive || player.isHuman || player.jailed) return;
 
@@ -421,9 +489,13 @@ function performAIActions(player: Player, allPlayers: Player[], state: GameState
             ? now + 400 + Math.random() * 800
             : now + 1000 + Math.random() * 2000;
         } else if (now >= player.actionPlanAt) {
-          target.alive = false;
-          target.doingTask = false;
-          target.taskStationId = null;
+          if (player.ability === 'shooter') {
+            fireBullet(state, player, target, now);
+          } else {
+            target.alive = false;
+            target.doingTask = false;
+            target.taskStationId = null;
+          }
           player.killCooldown = KILL_COOLDOWN;
           player.actionPlanTargetId = null;
           if (player.enhanced && player.lockedTargetId === target.id) {
@@ -617,7 +689,7 @@ export function updateGame(state: GameState, dt: number, keys: Set<string>, now:
     _nextBotActionGap = 500 + Math.random() * 500;
   }
 
-  state.projectiles = state.projectiles.filter(p => now - p.startTime < p.duration);
+  updateBullets(state, now);
 
   // Dynamic per-team win conditions
   const winner = computeWinner(state);
@@ -677,8 +749,13 @@ export function humanKill(state: GameState, now: number): boolean {
   );
   if (targets.length > 0) {
     const target = targets.reduce((a, b) => dist(human, a) < dist(human, b) ? a : b);
-    target.alive = false;
-    target.doingTask = false;
+    if (human.ability === 'shooter') {
+      fireBullet(state, human, target, now);
+    } else {
+      target.alive = false;
+      target.doingTask = false;
+      target.taskStationId = null;
+    }
     human.killCooldown = KILL_COOLDOWN;
     return true;
   }

@@ -1,6 +1,6 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
-import { GameState, KILL_RANGE, ARREST_RANGE, DOOR_USE_COOLDOWN } from '@/game/types';
-import { updateGame, humanKill, humanArrest, getNearbyTask, getNearbyDoor, toggleDoor } from '@/game/engine';
+import { GameState, ARREST_RANGE, DOOR_USE_COOLDOWN } from '@/game/types';
+import { updateGame, humanKill, humanArrest, getNearbyTask, getNearbyDoor, toggleDoor, rangeForAbility } from '@/game/engine';
 import { generateTaskChallenge } from '@/game/tasks';
 import { renderGame } from '@/game/renderer';
 import TaskOverlay from './TaskOverlay';
@@ -275,7 +275,7 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
   const hAb = human.ability;
   if (hAb === 'kill' || hAb === 'shooter') {
     actionLabel = hAb === 'shooter' ? 'SHOOT' : 'KILL';
-    const range = hAb === 'shooter' ? KILL_RANGE * 2.4 : KILL_RANGE;
+    const range = rangeForAbility(hAb);
     canAction = human.alive && !human.jailed && human.killCooldown <= 0 &&
       gameState.players.some(p => p.alive && p.id !== 0 && p.team !== human.team && dist(human, p) < range);
   } else if (hAb === 'jail') {
