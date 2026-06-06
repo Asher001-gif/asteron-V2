@@ -749,8 +749,13 @@ export function humanKill(state: GameState, now: number): boolean {
   );
   if (targets.length > 0) {
     const target = targets.reduce((a, b) => dist(human, a) < dist(human, b) ? a : b);
-    target.alive = false;
-    target.doingTask = false;
+    if (human.ability === 'shooter') {
+      fireBullet(state, human, target, now);
+    } else {
+      target.alive = false;
+      target.doingTask = false;
+      target.taskStationId = null;
+    }
     human.killCooldown = KILL_COOLDOWN;
     return true;
   }
