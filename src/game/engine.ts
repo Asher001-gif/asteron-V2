@@ -1,6 +1,7 @@
 import {
   Player, GameState, Role,
-  PLAYER_RADIUS, KILL_RANGE,
+  PLAYER_RADIUS, KILL_RANGE, KILL_CLOSE_RANGE, SHOOTER_RANGE,
+  BULLET_SPEED, BULLET_HIT_RADIUS, FreezeProjectile,
   KILL_COOLDOWN, MAP_WIDTH, MAP_HEIGHT, TASK_RANGE, TOTAL_TASKS,
   ARREST_RANGE, ARREST_COOLDOWN, JAIL_DURATION, JAIL_RECT, JAIL_RELEASE,
   DOOR_INTERACT_RANGE, DOOR_USE_COOLDOWN,
@@ -38,7 +39,7 @@ const BOT_VISION: Record<Ability, number> = {
   crew: 220,
   jail: 180,
   kill: 130,
-  shooter: 220,
+  shooter: SHOOTER_RANGE,
 };
 
 const ABILITY_SPEED: Record<Ability, number> = {
@@ -48,9 +49,9 @@ const ABILITY_SPEED: Record<Ability, number> = {
   shooter: 3.5,
 };
 
-function rangeForAbility(ab: Ability): number {
-  if (ab === 'shooter') return KILL_RANGE * 2.4;
-  if (ab === 'kill') return KILL_RANGE;
+export function rangeForAbility(ab: Ability): number {
+  if (ab === 'shooter') return SHOOTER_RANGE;
+  if (ab === 'kill') return KILL_CLOSE_RANGE;
   if (ab === 'jail') return ARREST_RANGE;
   return 0;
 }
