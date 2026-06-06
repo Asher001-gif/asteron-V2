@@ -489,9 +489,13 @@ function performAIActions(player: Player, allPlayers: Player[], state: GameState
             ? now + 400 + Math.random() * 800
             : now + 1000 + Math.random() * 2000;
         } else if (now >= player.actionPlanAt) {
-          target.alive = false;
-          target.doingTask = false;
-          target.taskStationId = null;
+          if (player.ability === 'shooter') {
+            fireBullet(state, player, target, now);
+          } else {
+            target.alive = false;
+            target.doingTask = false;
+            target.taskStationId = null;
+          }
           player.killCooldown = KILL_COOLDOWN;
           player.actionPlanTargetId = null;
           if (player.enhanced && player.lockedTargetId === target.id) {
