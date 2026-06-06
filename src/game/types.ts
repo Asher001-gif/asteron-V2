@@ -128,6 +128,16 @@ export interface FreezeProjectile {
   speed: number;
   startTime: number;
   duration: number; // ms
+  // New (bullet) fields. When `kind === 'bullet'` the projectile travels in
+  // a straight line from (x,y) along (dirX,dirY) at `speed` (px/ms) up to
+  // `maxDistance` and can be dodged by moving out of its path.
+  kind?: 'freeze' | 'bullet';
+  ownerId?: number;
+  ownerTeam?: TeamIndex;
+  dirX?: number;
+  dirY?: number;
+  maxDistance?: number;
+  hit?: boolean;
 }
 
 export interface Door {
@@ -164,6 +174,14 @@ export interface GameState {
 
 export const PLAYER_RADIUS = 18;
 export const KILL_RANGE = 42;
+// Tight range required for the melee `kill` ability — must be hugging close.
+export const KILL_CLOSE_RANGE = 34;
+// Shooter can fire anywhere inside their vision; bullet then has to connect.
+export const SHOOTER_RANGE = 260;
+// Bullet travel speed in px / ms.
+export const BULLET_SPEED = 0.95;
+// Bullet hit radius around player center.
+export const BULLET_HIT_RADIUS = 16;
 export const FREEZE_RANGE = 120;
 export const FREEZE_DURATION = 5000;
 export const KILL_COOLDOWN = 5000;
