@@ -689,7 +689,7 @@ export function updateGame(state: GameState, dt: number, keys: Set<string>, now:
     _nextBotActionGap = 500 + Math.random() * 500;
   }
 
-  state.projectiles = state.projectiles.filter(p => now - p.startTime < p.duration);
+  updateBullets(state, now);
 
   // Dynamic per-team win conditions
   const winner = computeWinner(state);
