@@ -612,9 +612,7 @@ function performAIActions(player: Player, allPlayers: Player[], state: GameState
           if (player.ability === 'shooter') {
             fireBullet(state, player, target, now);
           } else {
-            target.alive = false;
-            target.doingTask = false;
-            target.taskStationId = null;
+            applyAttack(target);
           }
           player.killCooldown = KILL_COOLDOWN;
           player.actionPlanTargetId = null;
@@ -872,9 +870,7 @@ export function humanKill(state: GameState, now: number): boolean {
     if (human.ability === 'shooter') {
       fireBullet(state, human, target, now);
     } else {
-      target.alive = false;
-      target.doingTask = false;
-      target.taskStationId = null;
+      applyAttack(target);
     }
     human.killCooldown = KILL_COOLDOWN;
     return true;
@@ -913,13 +909,13 @@ export function getNearbyDoor(state: GameState): number | null {
   const human = state.players[0];
   if (!human.alive || human.jailed) return null;
   if (human.ability === 'jail') return null;
-  const door = state.doors.find(d => Math.hypot(d.cx - human.x, d.cy - human.y) < DOOR_INTERACT_RANGE);
+  const door = state.doors.find(d => !d.synthetic && Math.hypot(d.cx - human.x, d.cy - human.y) < DOOR_INTERACT_RANGE);
   return door ? door.id : null;
 }
 
 export function toggleDoor(state: GameState, doorId: number, now: number): boolean {
   const door = state.doors.find(d => d.id === doorId);
-  if (!door) return false;
+  if (!door || door.synthetic) return false;
   if (now - door.lastUsedAt < DOOR_USE_COOLDOWN) return false;
   door.open = !door.open;
   door.lastUsedAt = now;
