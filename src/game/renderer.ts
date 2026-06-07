@@ -701,6 +701,37 @@ function drawPlayer(ctx: CanvasRenderingContext2D, p: Player, human: Player) {
   ctx.font = 'bold 11px monospace';
   ctx.fillText(p.name, x, y - 32 * s);
 
+  // Shield badges (small blue dots) under the team banner
+  const shieldCount = p.shields ?? 0;
+  if (shieldCount > 0) {
+    const sx0 = x - (shieldCount - 1) * 6;
+    for (let i = 0; i < shieldCount; i++) {
+      const sx = sx0 + i * 12;
+      const sy = y - 18 * s;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 4.5, 0, Math.PI * 2);
+      ctx.fillStyle = '#9ac9ff';
+      ctx.fill();
+      ctx.strokeStyle = '#235a99';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+  }
+
+  // Speed-boost halo
+  if ((p.speedBoostUntil ?? 0) > performance.now()) {
+    ctx.save();
+    ctx.globalAlpha = 0.6;
+    ctx.strokeStyle = '#ffe46a';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([3, 4]);
+    ctx.beginPath();
+    ctx.arc(x, p.y, 24, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
   if (p.isHuman) {
     ctx.fillStyle = '#ffd700';
     ctx.font = 'bold 10px monospace';
