@@ -5,7 +5,12 @@ import {
   KILL_COOLDOWN, MAP_WIDTH, MAP_HEIGHT, TASK_RANGE, TOTAL_TASKS,
   ARREST_RANGE, ARREST_COOLDOWN, JAIL_DURATION, JAIL_RECT, JAIL_RELEASE,
   DOOR_INTERACT_RANGE, DOOR_USE_COOLDOWN,
-  GameSettings, DEFAULT_SETTINGS, Ability, TeamIndex
+  GameSettings, DEFAULT_SETTINGS, Ability, TeamIndex,
+  Powerup, PowerupKind, Door,
+  POWERUP_RADIUS, POWERUP_PICKUP_RANGE,
+  POWERUP_SPAWN_INTERVAL_MIN, POWERUP_SPAWN_INTERVAL_MAX,
+  POWERUP_MAX_ON_MAP, SPEED_BOOST_DURATION, SPEED_BOOST_MULT,
+  BUILDER_BLOCK_LIFETIME, BUILDER_BLOCK_LENGTH
 } from './types';
 import { createTaskStations } from './tasks';
 import { resolveCollisions, hasLineOfSight, createDoors } from './collision';
@@ -197,6 +202,10 @@ export function createGame(settings: GameSettings = DEFAULT_SETTINGS, playerName
     settings,
     teamAbilities: [...settings.roleAbilities] as [Ability, Ability, Ability],
     teamCounts: [...settings.roleCounts] as [number, number, number],
+    powerups: [],
+    nextPowerupSpawnAt: 4000, // first spawn ~4s into the game
+    nextPowerupId: 1,
+    nextSyntheticDoorId: 1000,
   };
 }
 
@@ -394,6 +403,119 @@ function releasePlayer(target: Player) {
   target.y = JAIL_RELEASE.y + (Math.random() - 0.5) * 80;
 }
 
+/** Attack interception via shields. Returns true if attack was absorbed. */
+function applyAttack(target: Player): boolean {
+  if ((target.shields ?? 0) > 0) {
+    target.shields = (target.shields ?? 0) - 1;
+    return true;
+  }
+  target.alive = false;
+  target.doingTask = false;
+  target.taskStationId = null;
+  return false;
+}
+
+/* ===================== POWER-UPS ===================== */
+const POWERUP_KINDS: PowerupKind[] = [
+  'speed', 'speed', 'speed', 'life', 'life', 'builder', // builder is rare
+];
+
+function pickRandomPowerupKind(): PowerupKind {
+  return POWERUP_KINDS[Math.floor(Math.random() * POWERUP_KINDS.length)];
+}
+
+function isPointInsideJail(x: number, y: number, pad = 30): boolean {
+  return x > JAIL_RECT.x - pad && x < JAIL_RECT.x + JAIL_RECT.w + pad &&
+         y > JAIL_RECT.y - pad && y < JAIL_RECT.y + JAIL_RECT.h + pad;
+}
+
+function findFreeSpawnPoint(doors: Door[]): { x: number; y: number } | null {
+  for (let attempt = 0; attempt < 40; attempt++) {
+    const x = 80 + Math.random() * (MAP_WIDTH - 160);
+    const y = 80 + Math.random() * (MAP_HEIGHT - 160);
+    if (isPointInsideJail(x, y, 40)) continue;
+    // Reject if collision resolution would move the point (i.e. inside wall/rock/door)
+    const r = resolveCollisions(x, y, doors);
+    if (Math.hypot(r.x - x, r.y - y) > 0.5) continue;
+    return { x, y };
+  }
+  return null;
+}
+
+function spawnPowerup(state: GameState, now: number) {
+  if (state.powerups.length >= POWERUP_MAX_ON_MAP) return;
+  const pt = findFreeSpawnPoint(state.doors);
+  if (!pt) return;
+  state.powerups.push({
+    id: state.nextPowerupId++,
+    kind: pickRandomPowerupKind(),
+    x: pt.x, y: pt.y,
+    spawnedAt: now,
+  });
+}
+
+function applyPowerup(p: Player, kind: PowerupKind, now: number) {
+  if (kind === 'speed') {
+    p.speedBoostUntil = Math.max(p.speedBoostUntil ?? 0, now + SPEED_BOOST_DURATION);
+  } else if (kind === 'life') {
+    p.shields = (p.shields ?? 0) + 1;
+  } else if (kind === 'builder') {
+    p.builderCharges = (p.builderCharges ?? 0) + 1;
+  }
+}
+
+function processPowerupPickups(state: GameState, now: number) {
+  if (state.powerups.length === 0) return;
+  const remaining: Powerup[] = [];
+  for (const pu of state.powerups) {
+    let pickedBy: Player | null = null;
+    for (const p of state.players) {
+      if (!p.alive || p.jailed) continue;
+      if (Math.hypot(p.x - pu.x, p.y - pu.y) < POWERUP_PICKUP_RANGE + PLAYER_RADIUS - 6) {
+        pickedBy = p;
+        break;
+      }
+    }
+    if (pickedBy) applyPowerup(pickedBy, pu.kind, now);
+    else remaining.push(pu);
+  }
+  state.powerups = remaining;
+}
+
+function cleanupSyntheticDoors(state: GameState, now: number) {
+  state.doors = state.doors.filter(d => !d.synthetic || (d.expiresAt ?? 0) > now);
+}
+
+/** Place a builder wall block centered ~50px in front of `p` based on facing. */
+export function placeBuilderBlock(state: GameState, p: Player, now: number): boolean {
+  if ((p.builderCharges ?? 0) <= 0) return false;
+  // Determine facing
+  let fx = p.facingX ?? p.direction.x;
+  let fy = p.facingY ?? p.direction.y;
+  if (Math.hypot(fx, fy) < 0.05) { fx = 1; fy = 0; }
+  const len = Math.hypot(fx, fy) || 1;
+  fx /= len; fy /= len;
+  const cx = p.x + fx * 55;
+  const cy = p.y + fy * 55;
+  // Wall is perpendicular to facing
+  const px = -fy, py = fx;
+  const half = BUILDER_BLOCK_LENGTH / 2;
+  const door: Door = {
+    id: state.nextSyntheticDoorId++,
+    x1: cx + px * half, y1: cy + py * half,
+    x2: cx - px * half, y2: cy - py * half,
+    cx, cy,
+    open: false,
+    lastUsedAt: 0,
+    label: 'BLOCK',
+    synthetic: true,
+    expiresAt: now + BUILDER_BLOCK_LIFETIME,
+  };
+  state.doors.push(door);
+  p.builderCharges = (p.builderCharges ?? 0) - 1;
+  return true;
+}
+
 /** Spawn a bullet projectile aimed at `target`'s current position. */
 function fireBullet(state: GameState, shooter: Player, target: Player, now: number) {
   const dx = target.x - shooter.x;
@@ -443,9 +565,7 @@ function updateBullets(state: GameState, now: number) {
       if (p.team === proj.ownerTeam) continue;
       const d = Math.hypot(p.x - cx, p.y - cy);
       if (d < BULLET_HIT_RADIUS + PLAYER_RADIUS - 8) {
-        p.alive = false;
-        p.doingTask = false;
-        p.taskStationId = null;
+        applyAttack(p);
         proj.hit = true;
         break;
       }
@@ -492,9 +612,7 @@ function performAIActions(player: Player, allPlayers: Player[], state: GameState
           if (player.ability === 'shooter') {
             fireBullet(state, player, target, now);
           } else {
-            target.alive = false;
-            target.doingTask = false;
-            target.taskStationId = null;
+            applyAttack(target);
           }
           player.killCooldown = KILL_COOLDOWN;
           player.actionPlanTargetId = null;
@@ -630,7 +748,7 @@ export function updateGame(state: GameState, dt: number, keys: Set<string>, now:
           );
           if (threatNear) {
             const openDoor = state.doors.find(d =>
-              d.open && Math.hypot(d.cx - p.x, d.cy - p.y) < 80
+              d.open && !d.synthetic && Math.hypot(d.cx - p.x, d.cy - p.y) < 80
             );
             if (openDoor) {
               p.doorBusyUntil = now + 3000;
@@ -640,7 +758,7 @@ export function updateGame(state: GameState, dt: number, keys: Set<string>, now:
           }
         } else {
           const door = state.doors.find(d =>
-            !d.open && Math.hypot(d.cx - p.x, d.cy - p.y) < 50
+            !d.open && !d.synthetic && Math.hypot(d.cx - p.x, d.cy - p.y) < 50
           );
           if (door) {
             p.doorBusyUntil = now + 3000;
@@ -655,8 +773,13 @@ export function updateGame(state: GameState, dt: number, keys: Set<string>, now:
       updateAI(p, state.players, state, now);
     }
 
-    p.x += p.direction.x * p.speed;
-    p.y += p.direction.y * p.speed;
+    const boost = (p.speedBoostUntil ?? 0) > now ? SPEED_BOOST_MULT : 1;
+    p.x += p.direction.x * p.speed * boost;
+    p.y += p.direction.y * p.speed * boost;
+    if (Math.abs(p.direction.x) + Math.abs(p.direction.y) > 0.1) {
+      p.facingX = p.direction.x;
+      p.facingY = p.direction.y;
+    }
 
     if (p.jailed) {
       p.x = Math.max(JAIL_RECT.x + PLAYER_RADIUS, Math.min(JAIL_RECT.x + JAIL_RECT.w - PLAYER_RADIUS, p.x));
@@ -690,6 +813,16 @@ export function updateGame(state: GameState, dt: number, keys: Set<string>, now:
   }
 
   updateBullets(state, now);
+
+  // Power-ups: spawn + pickup + cleanup synthetic walls
+  if (now >= state.nextPowerupSpawnAt) {
+    spawnPowerup(state, now);
+    state.nextPowerupSpawnAt = now +
+      POWERUP_SPAWN_INTERVAL_MIN +
+      Math.random() * (POWERUP_SPAWN_INTERVAL_MAX - POWERUP_SPAWN_INTERVAL_MIN);
+  }
+  processPowerupPickups(state, now);
+  cleanupSyntheticDoors(state, now);
 
   // Dynamic per-team win conditions
   const winner = computeWinner(state);
@@ -752,9 +885,7 @@ export function humanKill(state: GameState, now: number): boolean {
     if (human.ability === 'shooter') {
       fireBullet(state, human, target, now);
     } else {
-      target.alive = false;
-      target.doingTask = false;
-      target.taskStationId = null;
+      applyAttack(target);
     }
     human.killCooldown = KILL_COOLDOWN;
     return true;
@@ -793,13 +924,13 @@ export function getNearbyDoor(state: GameState): number | null {
   const human = state.players[0];
   if (!human.alive || human.jailed) return null;
   if (human.ability === 'jail') return null;
-  const door = state.doors.find(d => Math.hypot(d.cx - human.x, d.cy - human.y) < DOOR_INTERACT_RANGE);
+  const door = state.doors.find(d => !d.synthetic && Math.hypot(d.cx - human.x, d.cy - human.y) < DOOR_INTERACT_RANGE);
   return door ? door.id : null;
 }
 
 export function toggleDoor(state: GameState, doorId: number, now: number): boolean {
   const door = state.doors.find(d => d.id === doorId);
-  if (!door) return false;
+  if (!door || door.synthetic) return false;
   if (now - door.lastUsedAt < DOOR_USE_COOLDOWN) return false;
   door.open = !door.open;
   door.lastUsedAt = now;

@@ -118,6 +118,12 @@ export interface Player {
   // Enhanced (smart) bot flag and lock-on target
   enhanced?: boolean;
   lockedTargetId?: number | null;
+  // Power-up state
+  shields?: number;
+  speedBoostUntil?: number;
+  builderCharges?: number;
+  facingX?: number;
+  facingY?: number;
 }
 
 export interface FreezeProjectile {
@@ -150,6 +156,19 @@ export interface Door {
   open: boolean;
   lastUsedAt: number;
   label: string;
+  // Synthetic = player-placed wall block (never interactable, time-limited).
+  synthetic?: boolean;
+  expiresAt?: number;
+}
+
+export type PowerupKind = 'speed' | 'life' | 'builder';
+
+export interface Powerup {
+  id: number;
+  kind: PowerupKind;
+  x: number;
+  y: number;
+  spawnedAt: number;
 }
 
 export interface GameState {
@@ -170,6 +189,10 @@ export interface GameState {
   settings: GameSettings;
   teamAbilities: [Ability, Ability, Ability];
   teamCounts: [number, number, number];
+  powerups: Powerup[];
+  nextPowerupSpawnAt: number;
+  nextPowerupId: number;
+  nextSyntheticDoorId: number;
 }
 
 export const PLAYER_RADIUS = 18;
@@ -202,3 +225,14 @@ export const JAIL_RELEASE = { x: 800, y: 700 };
 // Doors
 export const DOOR_USE_COOLDOWN = 1500;
 export const DOOR_INTERACT_RANGE = 55;
+
+// Power-ups
+export const POWERUP_RADIUS = 16;
+export const POWERUP_PICKUP_RANGE = 28;
+export const POWERUP_SPAWN_INTERVAL_MIN = 12000;
+export const POWERUP_SPAWN_INTERVAL_MAX = 22000;
+export const POWERUP_MAX_ON_MAP = 4;
+export const SPEED_BOOST_DURATION = 5000;
+export const SPEED_BOOST_MULT = 1.6;
+export const BUILDER_BLOCK_LIFETIME = 40000;
+export const BUILDER_BLOCK_LENGTH = 90;

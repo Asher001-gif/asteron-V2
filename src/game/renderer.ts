@@ -1,4 +1,5 @@
 import { GameState, Player, PLAYER_RADIUS, TASK_RANGE, FreezeProjectile, JAIL_RECT, JAIL_DURATION, DOOR_INTERACT_RANGE, TEAM_COLORS, TEAM_NAMES, TeamIndex } from './types';
+import { Powerup, POWERUP_RADIUS } from './types';
 import { ROOM_WALLS, OBSTACLES, ROOMS } from './collision';
 import crewA from '@/assets/char-crew-a.png';
 import crewB from '@/assets/char-crew-b.png';
@@ -61,6 +62,7 @@ export function renderGame(
   drawJailRoom(ctx);
   drawTaskStations(ctx, state);
   drawDoors(ctx, state);
+  drawPowerups(ctx, state.powerups);
 
   for (const p of state.players) {
     if (!p.alive) drawDeadPlayer(ctx, p);
@@ -118,6 +120,36 @@ export function renderGame(
 function drawDoors(ctx: CanvasRenderingContext2D, state: GameState) {
   const human = state.players[0];
   for (const d of state.doors) {
+    if (d.synthetic) {
+      // Player-placed wall block — looks like a thick metallic barricade.
+      const cx = d.cx, cy = d.cy;
+      const horizontal = d.y1 === d.y2;
+      const w = Math.abs(d.x2 - d.x1);
+      const h = Math.abs(d.y2 - d.y1);
+      const thickness = 14;
+      ctx.save();
+      const remaining = Math.max(0, (d.expiresAt ?? 0) - performance.now());
+      const fading = remaining < 5000;
+      ctx.globalAlpha = fading ? 0.4 + 0.6 * Math.abs(Math.sin(performance.now() * 0.012)) : 1;
+      ctx.fillStyle = '#6a6a78';
+      if (horizontal) ctx.fillRect(d.x1, cy - thickness / 2, w, thickness);
+      else ctx.fillRect(cx - thickness / 2, d.y1, thickness, h);
+      ctx.strokeStyle = '#cfa050';
+      ctx.lineWidth = 2;
+      if (horizontal) ctx.strokeRect(d.x1, cy - thickness / 2, w, thickness);
+      else ctx.strokeRect(cx - thickness / 2, d.y1, thickness, h);
+      // Rivets
+      ctx.fillStyle = '#ffd700';
+      const dots = 3;
+      for (let i = 1; i <= dots; i++) {
+        const t = i / (dots + 1);
+        const px = horizontal ? d.x1 + w * t : cx;
+        const py = horizontal ? cy : d.y1 + h * t;
+        ctx.beginPath(); ctx.arc(px, py, 2, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.restore();
+      continue;
+    }
     const cx = d.cx, cy = d.cy;
     const horizontal = d.y1 === d.y2;
     const w = Math.abs(d.x2 - d.x1);
@@ -161,12 +193,87 @@ function drawDoors(ctx: CanvasRenderingContext2D, state: GameState) {
 
     // Interaction prompt
     const near = Math.hypot(human.x - cx, human.y - cy) < DOOR_INTERACT_RANGE;
-    if (near && human.alive && !human.jailed && human.role !== 'protector') {
+    if (!d.synthetic && near && human.alive && !human.jailed && human.role !== 'protector') {
       ctx.fillStyle = '#ffd700';
       ctx.font = 'bold 11px monospace';
       ctx.textAlign = 'center';
       ctx.fillText(d.open ? '[E] CLOSE' : '[E] OPEN', cx, cy - 18);
     }
+  }
+}
+
+/* ==================== POWER-UPS ==================== */
+function drawPowerups(ctx: CanvasRenderingContext2D, powerups: Powerup[]) {
+  const now = performance.now();
+  for (const pu of powerups) {
+    const bob = Math.sin(now * 0.004 + pu.id * 1.7) * 3;
+    const x = pu.x;
+    const y = pu.y + bob;
+    // Bubble background
+    const colors: Record<string, [string, string]> = {
+      speed:   ['#ffe46a', '#c98c1e'],
+      life:    ['#ff7a8a', '#a3203a'],
+      builder: ['#9ac9ff', '#235a99'],
+    };
+    const [fill, stroke] = colors[pu.kind];
+    // Outer glow
+    const glow = ctx.createRadialGradient(x, y, 4, x, y, POWERUP_RADIUS + 10);
+    glow.addColorStop(0, fill + 'cc');
+    glow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath(); ctx.arc(x, y, POWERUP_RADIUS + 10, 0, Math.PI * 2); ctx.fill();
+    // Bubble
+    ctx.beginPath();
+    ctx.arc(x, y, POWERUP_RADIUS, 0, Math.PI * 2);
+    ctx.fillStyle = fill;
+    ctx.fill();
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // Bubble highlight
+    ctx.beginPath();
+    ctx.arc(x - 5, y - 6, 4, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.fill();
+    // Icon
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.strokeStyle = '#1a0a05';
+    ctx.fillStyle = '#1a0a05';
+    ctx.lineWidth = 2.2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    if (pu.kind === 'speed') {
+      // Lightning bolt
+      ctx.beginPath();
+      ctx.moveTo(2, -8);
+      ctx.lineTo(-4, 1);
+      ctx.lineTo(0, 1);
+      ctx.lineTo(-2, 8);
+      ctx.lineTo(5, -2);
+      ctx.lineTo(0, -2);
+      ctx.closePath();
+      ctx.fill();
+    } else if (pu.kind === 'life') {
+      // Plus
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(-6, 0); ctx.lineTo(6, 0);
+      ctx.moveTo(0, -6); ctx.lineTo(0, 6);
+      ctx.stroke();
+    } else {
+      // Wrench
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.arc(-4, -4, 4, Math.PI * 0.2, Math.PI * 1.6);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-2, -2);
+      ctx.lineTo(7, 7);
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
+    ctx.restore();
   }
 }
 
@@ -593,6 +700,37 @@ function drawPlayer(ctx: CanvasRenderingContext2D, p: Player, human: Player) {
   ctx.fillStyle = '#fff';
   ctx.font = 'bold 11px monospace';
   ctx.fillText(p.name, x, y - 32 * s);
+
+  // Shield badges (small blue dots) under the team banner
+  const shieldCount = p.shields ?? 0;
+  if (shieldCount > 0) {
+    const sx0 = x - (shieldCount - 1) * 6;
+    for (let i = 0; i < shieldCount; i++) {
+      const sx = sx0 + i * 12;
+      const sy = y - 18 * s;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 4.5, 0, Math.PI * 2);
+      ctx.fillStyle = '#9ac9ff';
+      ctx.fill();
+      ctx.strokeStyle = '#235a99';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+  }
+
+  // Speed-boost halo
+  if ((p.speedBoostUntil ?? 0) > performance.now()) {
+    ctx.save();
+    ctx.globalAlpha = 0.6;
+    ctx.strokeStyle = '#ffe46a';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([3, 4]);
+    ctx.beginPath();
+    ctx.arc(x, p.y, 24, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
 
   if (p.isHuman) {
     ctx.fillStyle = '#ffd700';
@@ -1098,6 +1236,23 @@ function drawHUD(ctx: CanvasRenderingContext2D, state: GameState, w: number, h: 
     } else {
       ctx.fillStyle = '#888';
       ctx.fillText('[SPACE/E] Do Your Team Tasks', w / 2, 48);
+    }
+  }
+
+  // Power-up status chips (top-right under time)
+  if (human.alive) {
+    const chips: string[] = [];
+    if ((human.shields ?? 0) > 0) chips.push(`🛡 ${human.shields}`);
+    if ((human.speedBoostUntil ?? 0) > performance.now()) {
+      const secs = Math.ceil(((human.speedBoostUntil ?? 0) - performance.now()) / 1000);
+      chips.push(`⚡ ${secs}s`);
+    }
+    if ((human.builderCharges ?? 0) > 0) chips.push(`🛠 [B] BUILD x${human.builderCharges}`);
+    if (chips.length > 0) {
+      ctx.textAlign = 'right';
+      ctx.font = 'bold 12px monospace';
+      ctx.fillStyle = '#ffe46a';
+      ctx.fillText(chips.join('   '), w - 15, 78);
     }
   }
 

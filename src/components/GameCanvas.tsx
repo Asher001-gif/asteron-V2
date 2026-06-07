@@ -1,6 +1,6 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { GameState, ARREST_RANGE, DOOR_USE_COOLDOWN } from '@/game/types';
-import { updateGame, humanKill, humanArrest, getNearbyTask, getNearbyDoor, toggleDoor, rangeForAbility } from '@/game/engine';
+import { updateGame, humanKill, humanArrest, getNearbyTask, getNearbyDoor, toggleDoor, rangeForAbility, placeBuilderBlock } from '@/game/engine';
 import { generateTaskChallenge } from '@/game/tasks';
 import { renderGame } from '@/game/renderer';
 import TaskOverlay from './TaskOverlay';
@@ -128,6 +128,15 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
             setShowTask(true);
             setGameState({ ...s });
           }
+        }
+      }
+      if (key === 'b') {
+        e.preventDefault();
+        const s = stateRef.current;
+        const human = s.players[0];
+        if (human.alive && !human.jailed && (human.builderCharges ?? 0) > 0) {
+          placeBuilderBlock(s, human, performance.now());
+          setGameState({ ...s });
         }
       }
     } else {
@@ -268,6 +277,15 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
     }
   }, [setGameState]);
 
+  const handleMobileBuild = useCallback(() => {
+    const s = stateRef.current;
+    const human = s.players[0];
+    if (human.alive && !human.jailed && (human.builderCharges ?? 0) > 0) {
+      placeBuilderBlock(s, human, performance.now());
+      setGameState({ ...s });
+    }
+  }, [setGameState]);
+
   // Determine action button state for mobile
   const human = gameState.players[0];
   let actionLabel = '';
@@ -327,6 +345,8 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
           actionLabel={actionLabel}
           onMove={handleMobileMove}
           onAction={handleMobileAction}
+          builderCharges={human.builderCharges ?? 0}
+          onBuild={handleMobileBuild}
         />
       )}
       {needsRotate && <RotateDevicePrompt />}
