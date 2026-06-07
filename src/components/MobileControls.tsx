@@ -9,9 +9,11 @@ interface Props {
   actionLabel: string; // "TASK" | "KILL" | "FREEZE"
   onMove: (dx: number, dy: number) => void;
   onAction: () => void;
+  builderCharges?: number;
+  onBuild?: () => void;
 }
 
-export default function MobileControls({ role, ability, team, canAction, actionLabel, onMove, onAction }: Props) {
+export default function MobileControls({ role, ability, team, canAction, actionLabel, onMove, onAction, builderCharges = 0, onBuild }: Props) {
   const joystickRef = useRef<HTMLDivElement>(null);
   const [knobPos, setKnobPos] = useState({ x: 0, y: 0 });
   const activeTouch = useRef<number | null>(null);
@@ -126,6 +128,34 @@ export default function MobileControls({ role, ability, team, canAction, actionL
       >
         {actionLabel}
       </button>
+
+      {builderCharges > 0 && onBuild && (
+        <button
+          className="pointer-events-auto absolute"
+          style={{
+            bottom: 140,
+            right: 40,
+            width: 60,
+            height: 60,
+            borderRadius: '50%',
+            background: '#9ac9ff',
+            border: '3px solid white',
+            color: '#1a0a05',
+            fontFamily: 'monospace',
+            fontWeight: 'bold',
+            fontSize: 11,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            lineHeight: 1.1,
+          }}
+          onTouchStart={(e) => { e.preventDefault(); onBuild(); }}
+        >
+          <span>BUILD</span>
+          <span style={{ fontSize: 10 }}>x{builderCharges}</span>
+        </button>
+      )}
     </div>
   );
 }
