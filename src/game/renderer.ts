@@ -1239,6 +1239,23 @@ function drawHUD(ctx: CanvasRenderingContext2D, state: GameState, w: number, h: 
     }
   }
 
+  // Power-up status chips (top-right under time)
+  if (human.alive) {
+    const chips: string[] = [];
+    if ((human.shields ?? 0) > 0) chips.push(`🛡 ${human.shields}`);
+    if ((human.speedBoostUntil ?? 0) > performance.now()) {
+      const secs = Math.ceil(((human.speedBoostUntil ?? 0) - performance.now()) / 1000);
+      chips.push(`⚡ ${secs}s`);
+    }
+    if ((human.builderCharges ?? 0) > 0) chips.push(`🛠 [B] BUILD x${human.builderCharges}`);
+    if (chips.length > 0) {
+      ctx.textAlign = 'right';
+      ctx.font = 'bold 12px monospace';
+      ctx.fillStyle = '#ffe46a';
+      ctx.fillText(chips.join('   '), w - 15, 78);
+    }
+  }
+
   // Arrest notification banner (top center under HUD)
   if (state.recentArrest) {
     const age = performance.now() - state.recentArrest.time;
