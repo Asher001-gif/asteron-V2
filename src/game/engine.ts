@@ -748,7 +748,7 @@ export function updateGame(state: GameState, dt: number, keys: Set<string>, now:
           );
           if (threatNear) {
             const openDoor = state.doors.find(d =>
-              d.open && Math.hypot(d.cx - p.x, d.cy - p.y) < 80
+              d.open && !d.synthetic && Math.hypot(d.cx - p.x, d.cy - p.y) < 80
             );
             if (openDoor) {
               p.doorBusyUntil = now + 3000;
@@ -758,7 +758,7 @@ export function updateGame(state: GameState, dt: number, keys: Set<string>, now:
           }
         } else {
           const door = state.doors.find(d =>
-            !d.open && Math.hypot(d.cx - p.x, d.cy - p.y) < 50
+            !d.open && !d.synthetic && Math.hypot(d.cx - p.x, d.cy - p.y) < 50
           );
           if (door) {
             p.doorBusyUntil = now + 3000;
@@ -773,8 +773,13 @@ export function updateGame(state: GameState, dt: number, keys: Set<string>, now:
       updateAI(p, state.players, state, now);
     }
 
-    p.x += p.direction.x * p.speed;
-    p.y += p.direction.y * p.speed;
+    const boost = (p.speedBoostUntil ?? 0) > now ? SPEED_BOOST_MULT : 1;
+    p.x += p.direction.x * p.speed * boost;
+    p.y += p.direction.y * p.speed * boost;
+    if (Math.abs(p.direction.x) + Math.abs(p.direction.y) > 0.1) {
+      p.facingX = p.direction.x;
+      p.facingY = p.direction.y;
+    }
 
     if (p.jailed) {
       p.x = Math.max(JAIL_RECT.x + PLAYER_RADIUS, Math.min(JAIL_RECT.x + JAIL_RECT.w - PLAYER_RADIUS, p.x));
@@ -808,6 +813,16 @@ export function updateGame(state: GameState, dt: number, keys: Set<string>, now:
   }
 
   updateBullets(state, now);
+
+  // Power-ups: spawn + pickup + cleanup synthetic walls
+  if (now >= state.nextPowerupSpawnAt) {
+    spawnPowerup(state, now);
+    state.nextPowerupSpawnAt = now +
+      POWERUP_SPAWN_INTERVAL_MIN +
+      Math.random() * (POWERUP_SPAWN_INTERVAL_MAX - POWERUP_SPAWN_INTERVAL_MIN);
+  }
+  processPowerupPickups(state, now);
+  cleanupSyntheticDoors(state, now);
 
   // Dynamic per-team win conditions
   const winner = computeWinner(state);
